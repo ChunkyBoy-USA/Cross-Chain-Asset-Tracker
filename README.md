@@ -36,3 +36,18 @@ If one RPC node (like Infura) is slow, the app automatically switches to another
 4. Hardware-Level Security
 Uses the Android Keystore to keep your wallet addresses and session data encrypted and safe.
 
+# 🔗 Smart Contract & Infrastructure (SSoT)
+This repository serves as the single source of truth for the cross-chain logic. The Android app interacts directly with the following verified infrastructure: https://github.com/ChunkyBoy-USA/foundry-ccip-rebase-token
+
+### 🛰 Supported CCIP Lanes (Sepolia Testnets)
+| Source Chain | Destination Chain | Router Address | Token Address |
+| :--- | :--- | :--- | :--- |
+| **Ethereum** | Arbitrum | `0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59` | `0x9c8276c5446574e12446eD893Ab5ae4561214979`
+| **Arbitrum** | Ethereum | `0x2a9C5afB0d0e4BAb2BCdaE109EC4b0c4Be15a165` | `0x03Eacf91aBF33470F22857B3C72Fe7e36aa87216`
+
+
+### 🛠 Core Contract Logic
+* **Rebase Token** Contracts released on **Arbitrum Sepolia** and **Ethereum Sepolia**.
+* **Vault** Contract on Ethereum Sepolia for depositing ETH to mint Rebase Token.
+* **Verification:** All contracts are verified on **Arbiscan**, **Etherscan**, Explorer** using Foundry's `--verify` pipeline.
+
