@@ -10,11 +10,11 @@
         android:label="Asset Tracker"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoTitleBar">
+        android:theme="@style/Theme.MyApplication">
         <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.Material.Light.NoTitleBar">
+            android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
