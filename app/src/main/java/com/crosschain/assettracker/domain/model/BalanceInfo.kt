@@ -4,6 +4,7 @@ import java.math.BigDecimal
 
 data class BalanceInfo(
     val amount: BigDecimal,
-    val symbol: String,
-    val rebaseRate: BigDecimal
+    val tokenSymbol: String,
+    val rebaseRate: BigDecimal,
+    val chain: Chain
 )
