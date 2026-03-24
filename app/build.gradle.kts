@@ -59,6 +59,13 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp.logging)
+    implementation(platform(libs.reown.bom))
+    // Core SDK
+    implementation(libs.reown.core)
+    // For wallet applications
+    implementation(libs.reown.walletkit)
+    // For dApp applications
+    implementation(libs.reown.appkit)
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
