@@ -25,7 +25,7 @@ class MainViewModel @Inject constructor(
     override fun handleIntent(intent: MainIntent) {
         when (intent) {
             is MainIntent.LoadData -> {
-                observeBalance()
+                observeBalance(intent.chain)
             }
             is MainIntent.TrackTransfer -> {
                 trackCcipTransfer(intent.messageId)
@@ -36,9 +36,9 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun observeBalance() {
+    private fun observeBalance(chain: Chain) {
         viewModelScope.launch {
-            balanceRepository.getRealTimeBalance()
+            balanceRepository.getTokenBalance(chain)
                 .onStart { setState { copy(isLoading = true) } }
                 .catch { e -> 
                     setState { copy(errorMessage = e.message, isLoading = false) }
