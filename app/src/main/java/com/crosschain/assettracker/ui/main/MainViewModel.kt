@@ -2,6 +2,7 @@ package com.crosschain.assettracker.ui.main
 
 import androidx.lifecycle.viewModelScope
 import com.crosschain.assettracker.domain.model.Chain
+import com.crosschain.assettracker.domain.repository.AccountRepository
 import com.crosschain.assettracker.domain.repository.BalanceRepository
 import com.crosschain.assettracker.domain.repository.CcipRepository
 import com.crosschain.assettracker.ui.mvi.MviViewModel
@@ -17,7 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val balanceRepository: BalanceRepository,
-    private val ccipRepository: CcipRepository
+    private val ccipRepository: CcipRepository,
+    private val accountRepository: AccountRepository
 ) : MviViewModel<MainUiState, MainIntent, MainSideEffect>() {
 
     override fun createInitialState(): MainUiState = MainUiState()
