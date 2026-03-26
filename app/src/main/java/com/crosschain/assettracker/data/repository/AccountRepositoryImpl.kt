@@ -15,7 +15,7 @@ class AccountRepositoryImpl @Inject constructor(
     override fun loadAccounts(): Boolean {
         AppKit.getAccount()?.let { account ->
             Timber.tag(TAG).d("Account address loaded: ${account.address}")
-            localDataRepository.saveString(AccountConstants.ACCOUNT_ADDRESS_KEY, account.address)
+            localDataRepository.saveString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY, account.address)
             return true
         }
         return false

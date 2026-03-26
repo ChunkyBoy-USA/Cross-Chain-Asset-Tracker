@@ -95,7 +95,7 @@ class MainViewModel @Inject constructor(
 
     private fun loadAccountFromLocal() {
         viewModelScope.launch {
-            val address = localDataRepository.getString(AccountConstants.ACCOUNT_ADDRESS_KEY)
+            val address = localDataRepository.getString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY)
             if (address.isNullOrBlank()) {
                 setState { copy(shouldConnectWallet = true) }
             }

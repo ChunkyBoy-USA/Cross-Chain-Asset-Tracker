@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,9 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.kapt)
 }
+
+val properties = Properties()
+properties.load(project.rootProject.file("local.properties").inputStream())
 
 android {
     namespace = "com.crosschain.assettracker"
@@ -21,9 +26,14 @@ android {
     }
 
     buildTypes {
+
         debug {
             isMinifyEnabled = false
             isDebuggable = true
+
+            buildConfigField("String", "ETHEREUM_SEPOLIA_RPC_URL", properties.getProperty("ETHEREUM_SEPOLIA_RPC_URL"))
+            buildConfigField("String", "ARBITRUM_SEPOLIA_RPC_URL", properties.getProperty("ARBITRUM_SEPOLIA_RPC_URL"))
+            buildConfigField("String", "REOWN_PROJECT_ID", properties.getProperty("REOWN_PROJECT_ID"))
         }
         release {
             isMinifyEnabled = false
@@ -31,6 +41,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            buildConfigField("String", "ETHEREUM_SEPOLIA_RPC_URL", properties.getProperty("ETHEREUM_SEPOLIA_RPC_URL"))
+            buildConfigField("String", "ARBITRUM_SEPOLIA_RPC_URL", properties.getProperty("ARBITRUM_SEPOLIA_RPC_URL"))
+            buildConfigField("String", "REOWN_PROJECT_ID", properties.getProperty("REOWN_PROJECT_ID"))
         }
     }
     compileOptions {
@@ -69,6 +83,8 @@ dependencies {
     implementation(libs.reown.core)
     // For dApp applications
     implementation(libs.reown.appkit)
+    // For blockchain interaction
+    implementation(libs.web3j.core)
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

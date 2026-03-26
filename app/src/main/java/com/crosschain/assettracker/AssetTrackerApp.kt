@@ -20,7 +20,7 @@ class AssetTrackerApp : Application(), AppKit.ModalDelegate {
             Timber.plant(Timber.DebugTree())
         }
 
-        val projectId = "0e054c704861974befea7f3d29ab6612"
+        val projectId = BuildConfig.REOWN_PROJECT_ID
         val connectionType = ConnectionType.AUTOMATIC
         val appMetaData = Core.Model.AppMetaData(
             name = "Meta Mask",
@@ -65,7 +65,7 @@ class AssetTrackerApp : Application(), AppKit.ModalDelegate {
                 optionalMethods = EthUtils.ethOptionalMethods,
                 events = EthUtils.ethEvents,
                 token = ethToken,
-                rpcUrl = "https://eth-sepolia.g.alchemy.com/v2/6dWSSrHidtXsRg2VcHlfy",
+                rpcUrl = BuildConfig.ETHEREUM_SEPOLIA_RPC_URL,
                 blockExplorerUrl = "https://sepolia.etherscan.io"
             )
         )

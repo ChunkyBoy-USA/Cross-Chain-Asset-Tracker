@@ -25,7 +25,7 @@ class LocalDataRepository @Inject constructor(
     )
 
     fun saveString(key: String, value: String) {
-        sharedPreferences.edit { putString(key, value) }
+        sharedPreferences.edit { putString(key, value).apply() }
     }
 
     fun getString(key: String): String? {
