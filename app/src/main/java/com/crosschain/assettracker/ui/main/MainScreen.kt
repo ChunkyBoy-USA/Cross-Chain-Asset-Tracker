@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.crosschain.assettracker.ui.mvi.main.MainIntent
 import com.reown.appkit.ui.components.internal.AppKitComponent
 import kotlinx.coroutines.launch
 
@@ -30,10 +31,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsState()
-    val modalSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val coroutineScope = rememberCoroutineScope()
-    var openBottomSheet by rememberSaveable { mutableStateOf(false) }
 
+    viewModel.setIntent(MainIntent.LoadAccountFromLocal)
 
     Scaffold(
         topBar = {
@@ -46,45 +46,41 @@ fun MainScreen(viewModel: MainViewModel) {
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Button(
-                    modifier = Modifier.wrapContentSize(),
-                    onClick = {
-                        openBottomSheet = true
-                    },
-                    enabled = !state.isLoading,
-                    content = { Text("Connect to Wallet") }
-                )
-            }
+            if (state.shouldConnectWallet) {
+                val modalSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
-
-            if (state.isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-
-            if (openBottomSheet) {
                 ModalBottomSheet(
                     modifier = Modifier.fillMaxSize(),
                     sheetState = modalSheetState,
                     onDismissRequest = {
-                        openBottomSheet = false
+                        coroutineScope.launch { modalSheetState.hide() }
                     },
                     content = {
                         AppKitComponent(
                             shouldOpenChooseNetwork = true,
-                            closeModal = { coroutineScope.launch { modalSheetState.hide() }}
+                            closeModal = {
+                                coroutineScope.launch { modalSheetState.hide() }
+                                viewModel.setIntent(MainIntent.LoadAccountFromWallet)
+                            }
                         )
                     }
                 )
+            }else {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                }
+
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
 
         }
-
     }
 
 }

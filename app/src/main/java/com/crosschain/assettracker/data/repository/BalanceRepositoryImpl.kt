@@ -2,7 +2,7 @@ package com.crosschain.assettracker.data.repository
 
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
-import com.crosschain.assettracker.domain.repository.BalanceRepository
+import com.crosschain.assettracker.domain.BalanceRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton

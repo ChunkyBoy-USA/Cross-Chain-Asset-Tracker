@@ -1,4 +1,4 @@
-package com.crosschain.assettracker.domain.repository
+package com.crosschain.assettracker.domain
 
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain

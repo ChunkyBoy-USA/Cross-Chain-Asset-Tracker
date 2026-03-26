@@ -1,7 +1,7 @@
 package com.crosschain.assettracker.data.repository
 
 import com.crosschain.assettracker.domain.model.CcipTransfer
-import com.crosschain.assettracker.domain.repository.CcipRepository
+import com.crosschain.assettracker.domain.CcipRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton

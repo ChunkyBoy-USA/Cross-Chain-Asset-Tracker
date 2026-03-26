@@ -4,6 +4,7 @@ import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.CcipTransfer
 
 data class MainUiState(
+    val shouldConnectWallet: Boolean = false,
     val isLoading: Boolean = false,
     val isError: Boolean = false,
     val errorMessage: String? = null,

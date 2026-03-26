@@ -1,4 +1,4 @@
-package com.crosschain.assettracker.domain.repository
+package com.crosschain.assettracker.domain
 
 import com.crosschain.assettracker.domain.model.CcipTransfer
 import kotlinx.coroutines.flow.Flow
