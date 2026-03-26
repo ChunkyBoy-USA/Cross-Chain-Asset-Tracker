@@ -62,8 +62,6 @@ dependencies {
     implementation(platform(libs.reown.bom))
     // Core SDK
     implementation(libs.reown.core)
-    // For wallet applications
-    implementation(libs.reown.walletkit)
     // For dApp applications
     implementation(libs.reown.appkit)
 
