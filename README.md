@@ -11,10 +11,11 @@ Most mobile wallets do not show "Rebase" token balances correctly in real-time. 
 * UI: Jetpack Compose
 
 * Architecture: Clean Architecture + MVVM
+* State Management: MVI
 
-* Data: Coroutines & Flow (Real-time updates), Hilt (DI), Room (Local Database)
+* Data: Coroutines & Flow (Real-time updates), Hilt (DI), EncryptedSharedPreferences (Local Storage)
 
-* Web3: Web3j / WalletConnect v2
+* Web3: Web3j / Reown SDK
 
 ### Web3 (Smart Contracts)
 * Smart Contracts: Solidity
