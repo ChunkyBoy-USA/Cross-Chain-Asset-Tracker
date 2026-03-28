@@ -34,6 +34,7 @@ import com.crosschain.assettracker.R
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.ui.mvi.main.MainIntent
+import com.crosschain.assettracker.ui.theme.LocalColorScheme
 import com.reown.appkit.ui.AppKitTheme
 import com.reown.appkit.ui.components.internal.AppKitComponent
 import kotlinx.coroutines.launch
@@ -137,14 +138,14 @@ fun BalanceCard(balanceInfo: BalanceInfo) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Base Interest Rate: ${balanceInfo.baseInterestRate}",
-                    fontSize = 12.sp,
-                    color = colorResource(R.color.purple_700)
+                    text = "Token Interest Rate: ${balanceInfo.baseInterestRate}",
+                    fontSize = 14.sp,
+                    color = LocalColorScheme.current.tertiary
                 )
                 Text(
-                    text = "Current Interest Rate: ${balanceInfo.currentInterestRate}",
-                    fontSize = 12.sp,
-                    color = colorResource(R.color.purple_200)
+                    text = "User Interest Rate: ${balanceInfo.currentInterestRate}",
+                    fontSize = 14.sp,
+                    color = LocalColorScheme.current.tertiary
                 )
             }
         }

@@ -78,11 +78,10 @@ class MainViewModel @Inject constructor(
                         setState {
                             when (balance.chain) {
                                 Chain.ETHEREUM -> {
-                                    copy(ethRebaseTokenBalanceInfo = balance, isLoading = false)
+                                    copy(ethRebaseTokenBalanceInfo = balance, isLoading = arbRebaseTokenBalanceInfo == null)
                                 }
-
                                 Chain.ARBITRUM -> {
-                                    copy(arbRebaseTokenBalanceInfo = balance, isLoading = false)
+                                    copy(arbRebaseTokenBalanceInfo = balance, isLoading = ethRebaseTokenBalanceInfo == null)
                                 }
                             }
                         }
