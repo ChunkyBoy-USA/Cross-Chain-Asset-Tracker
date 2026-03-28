@@ -91,6 +91,9 @@ dependencies {
     implementation(libs.reown.appkit)
     // For blockchain interaction
     implementation(libs.web3j.core)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

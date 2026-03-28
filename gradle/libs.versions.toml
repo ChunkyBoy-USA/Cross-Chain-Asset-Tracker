@@ -14,6 +14,7 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 reown = "1.4.2"
 web3j = "4.12.0"
+room = "2.6.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -39,6 +40,9 @@ reown-bom = { group = "com.reown", name = "android-bom", version.ref = "reown" }
 reown-core = { group = "com.reown", name = "android-core" }
 reown-appkit = { group = "com.reown", name = "appkit" }
 web3j-core = { group = "org.web3j", name = "core", version.ref = "web3j" }
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

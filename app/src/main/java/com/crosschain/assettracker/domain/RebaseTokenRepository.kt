@@ -4,6 +4,6 @@ import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import kotlinx.coroutines.flow.Flow
 
-interface BalanceRepository {
+interface RebaseTokenRepository {
     fun getTokenBalance(chain: Chain, address: String): Flow<BalanceInfo>
 }

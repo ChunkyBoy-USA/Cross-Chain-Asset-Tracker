@@ -1,28 +1,31 @@
 package com.crosschain.assettracker.data.repository
 
 import com.crosschain.assettracker.constants.AccountConstants
-import com.crosschain.assettracker.data.local.LocalDataRepository
+import com.crosschain.assettracker.data.local.EncryptedDataRepository
 import com.crosschain.assettracker.domain.AccountRepository
 import com.reown.appkit.client.AppKit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AccountRepositoryImpl @Inject constructor(
-    val localDataRepository: LocalDataRepository
+    val encryptedDataRepository: EncryptedDataRepository
 ) : AccountRepository {
-    override fun loadAccountFromAppKit(): Boolean {
+    override fun loadAccountFromAppKit() = flow {
         AppKit.getAccount()?.let { account ->
             Timber.tag(TAG).d("Account address loaded: ${account.address}")
-            localDataRepository.saveString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY, account.address)
-            return true
+            encryptedDataRepository.saveString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY, account.address)
+            emit(true)
         }
-        return false
-    }
+        emit(false)
+    }.flowOn(Dispatchers.IO)
 
     override fun getCurrentAccountAddress(): String? {
-        return localDataRepository.getString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY)
+        return encryptedDataRepository.getString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY)
     }
 
     companion object {

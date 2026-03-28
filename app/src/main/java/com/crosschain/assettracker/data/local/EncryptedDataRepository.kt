@@ -8,7 +8,7 @@ import javax.inject.Singleton
 import androidx.core.content.edit
 
 @Singleton
-class LocalDataRepository @Inject constructor(
+class EncryptedDataRepository @Inject constructor(
     @ApplicationContext context: Context
 ) {
 

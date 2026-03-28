@@ -1,6 +1,8 @@
 package com.crosschain.assettracker.domain
 
+import kotlinx.coroutines.flow.Flow
+
 interface AccountRepository {
-    fun loadAccountFromAppKit(): Boolean
+    fun loadAccountFromAppKit(): Flow<Boolean>
     fun getCurrentAccountAddress(): String?
 }

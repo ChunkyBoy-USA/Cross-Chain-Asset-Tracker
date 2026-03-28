@@ -1,10 +1,10 @@
 package com.crosschain.assettracker.di
 
 import com.crosschain.assettracker.data.repository.AccountRepositoryImpl
-import com.crosschain.assettracker.data.repository.BalanceRepositoryImpl
+import com.crosschain.assettracker.data.repository.RebaseTokenRepositoryImpl
 import com.crosschain.assettracker.data.repository.CcipRepositoryImpl
 import com.crosschain.assettracker.domain.AccountRepository
-import com.crosschain.assettracker.domain.BalanceRepository
+import com.crosschain.assettracker.domain.RebaseTokenRepository
 import com.crosschain.assettracker.domain.CcipRepository
 import dagger.Binds
 import dagger.Module
@@ -31,6 +31,6 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindBalanceRepository(
-        balanceRepositoryImpl: BalanceRepositoryImpl
-    ): BalanceRepository
+        balanceRepositoryImpl: RebaseTokenRepositoryImpl
+    ): RebaseTokenRepository
 }

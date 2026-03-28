@@ -26,12 +26,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.crosschain.assettracker.R
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.ui.mvi.main.MainIntent
+import com.reown.appkit.ui.AppKitTheme
 import com.reown.appkit.ui.components.internal.AppKitComponent
 import kotlinx.coroutines.launch
 
@@ -134,9 +137,14 @@ fun BalanceCard(balanceInfo: BalanceInfo) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
+                    text = "Base Interest Rate: ${balanceInfo.baseInterestRate}",
+                    fontSize = 12.sp,
+                    color = colorResource(R.color.purple_700)
+                )
+                Text(
                     text = "Current Interest Rate: ${balanceInfo.currentInterestRate}",
                     fontSize = 12.sp,
-                    color = Color(0xFF4CAF50)
+                    color = colorResource(R.color.purple_200)
                 )
             }
         }

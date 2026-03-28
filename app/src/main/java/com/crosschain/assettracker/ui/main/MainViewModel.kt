@@ -2,11 +2,10 @@ package com.crosschain.assettracker.ui.main
 
 import androidx.lifecycle.viewModelScope
 import com.crosschain.assettracker.constants.AccountConstants
-import com.crosschain.assettracker.data.local.LocalDataRepository
-import com.crosschain.assettracker.data.network.BlockchainService.Companion.TAG
+import com.crosschain.assettracker.data.local.EncryptedDataRepository
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.AccountRepository
-import com.crosschain.assettracker.domain.BalanceRepository
+import com.crosschain.assettracker.domain.RebaseTokenRepository
 import com.crosschain.assettracker.domain.CcipRepository
 import com.crosschain.assettracker.ui.mvi.MviViewModel
 import com.crosschain.assettracker.ui.mvi.main.MainIntent
@@ -16,14 +15,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val balanceRepository: BalanceRepository,
+    private val rebaseTokenRepository: RebaseTokenRepository,
     private val ccipRepository: CcipRepository,
-    private val localDataRepository: LocalDataRepository,
+    private val encryptedDataRepository: EncryptedDataRepository,
     private val accountRepository: AccountRepository,
 ) : MviViewModel<MainUiState, MainIntent, MainSideEffect>() {
 
@@ -57,18 +55,20 @@ class MainViewModel @Inject constructor(
         val address = accountRepository.getCurrentAccountAddress()
 
         if (address == null) {
-            setState { copy(
-                shouldConnectWallet = true,
-                isLoading = false,
-                isError = false,
-                errorMessage = null,
-                ethRebaseTokenBalanceInfo = null,
-                arbRebaseTokenBalanceInfo = null,
-                ccipTransfer = null
-            ) }
+            setState {
+                copy(
+                    shouldConnectWallet = true,
+                    isLoading = false,
+                    isError = false,
+                    errorMessage = null,
+                    ethRebaseTokenBalanceInfo = null,
+                    arbRebaseTokenBalanceInfo = null,
+                    ccipTransfer = null
+                )
+            }
         } else {
             viewModelScope.launch {
-                balanceRepository.getTokenBalance(chain, address)
+                rebaseTokenRepository.getTokenBalance(chain, address)
                     .onStart { setState { copy(isLoading = true) } }
                     .catch { e ->
                         setState { copy(errorMessage = e.message, isLoading = false) }
@@ -80,6 +80,7 @@ class MainViewModel @Inject constructor(
                                 Chain.ETHEREUM -> {
                                     copy(ethRebaseTokenBalanceInfo = balance, isLoading = false)
                                 }
+
                                 Chain.ARBITRUM -> {
                                     copy(arbRebaseTokenBalanceInfo = balance, isLoading = false)
                                 }
@@ -100,17 +101,24 @@ class MainViewModel @Inject constructor(
     }
 
     private fun loadAccountFromWallet() {
-        val isSuccessful = accountRepository.loadAccountFromAppKit()
-        if (isSuccessful) {
-            setState { copy(shouldConnectWallet = false) }
-        } else {
-            setState { copy(isError = true, errorMessage = "Fail to load account") }
+        viewModelScope.launch {
+            accountRepository.loadAccountFromAppKit().catch { e ->
+                setState { copy(errorMessage = e.message, isLoading = false) }
+                setEffect(MainSideEffect.ShowToast("Error loading account"))
+            }.collect { isSuccessful ->
+                if (isSuccessful) {
+                    setState { copy(shouldConnectWallet = false) }
+                } else {
+                    setState { copy(isError = true, errorMessage = "Fail to load account") }
+                }
+            }
         }
     }
 
     private fun loadAccountFromCache() {
         viewModelScope.launch {
-            val address = localDataRepository.getString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY)
+            val address =
+                encryptedDataRepository.getString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY)
             if (address.isNullOrBlank()) {
                 setState { copy(shouldConnectWallet = true) }
             }

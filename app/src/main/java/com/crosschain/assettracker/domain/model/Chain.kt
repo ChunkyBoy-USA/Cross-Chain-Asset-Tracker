@@ -10,15 +10,15 @@ enum class Chain(
     val linkTokenAddress: String
 ) {
     ETHEREUM(
-        EthereumSepoliaConstants.chainId,
-        EthereumSepoliaConstants.rpcUrl,
-        EthereumSepoliaConstants.rebaseTokenAddress,
-        EthereumSepoliaConstants.linkTokenAddress
+        EthereumSepoliaConstants.CHAIN_ID,
+        EthereumSepoliaConstants.RPC_URL,
+        EthereumSepoliaConstants.REBASE_TOKEN_ADDRESS,
+        EthereumSepoliaConstants.LINK_TOKEN_ADDRESS
     ),
     ARBITRUM(
-        ArbitrumSepoliaConstants.chainId,
-        ArbitrumSepoliaConstants.rpcUrl,
-        ArbitrumSepoliaConstants.rebaseTokenAddress,
-        ArbitrumSepoliaConstants.linkTokenAddress
+        ArbitrumSepoliaConstants.CHAIN_ID,
+        ArbitrumSepoliaConstants.RPC_URL,
+        ArbitrumSepoliaConstants.REBASE_TOKEN_ADDRESS,
+        ArbitrumSepoliaConstants.LINK_TOKEN_ADDRESS
     )
 }

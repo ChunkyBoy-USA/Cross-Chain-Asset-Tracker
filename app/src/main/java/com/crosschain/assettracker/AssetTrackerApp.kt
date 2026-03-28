@@ -56,17 +56,17 @@ class AssetTrackerApp : Application(), AppKit.ModalDelegate {
             }
         )
 
+        // Just choose Ethereum Chain to get wallet address
+        // because addresses will be identical on all Ethereum compatible chains
         val chains = mapOf(
-            "11155111" to Modal.Model.Chain(
-                chainName = "Ethereum Sepolia",
+            "1" to Modal.Model.Chain(
+                chainName = "Ethereum",
                 chainNamespace = "eip155",
-                chainReference = "11155111",
-                requiredMethods = EthUtils.ethRequiredMethods,
-                optionalMethods = EthUtils.ethOptionalMethods,
+                chainReference = "1",
+                requiredMethods = emptyList(),
+                optionalMethods = emptyList(),
                 events = EthUtils.ethEvents,
-                token = ethToken,
-                rpcUrl = BuildConfig.ETHEREUM_SEPOLIA_RPC_URL,
-                blockExplorerUrl = "https://sepolia.etherscan.io"
+                token = ethToken
             )
         )
 
