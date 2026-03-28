@@ -12,13 +12,17 @@ import javax.inject.Singleton
 class AccountRepositoryImpl @Inject constructor(
     val localDataRepository: LocalDataRepository
 ) : AccountRepository {
-    override fun loadAccounts(): Boolean {
+    override fun loadAccountFromAppKit(): Boolean {
         AppKit.getAccount()?.let { account ->
             Timber.tag(TAG).d("Account address loaded: ${account.address}")
             localDataRepository.saveString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY, account.address)
             return true
         }
         return false
+    }
+
+    override fun getCurrentAccountAddress(): String? {
+        return localDataRepository.getString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY)
     }
 
     companion object {

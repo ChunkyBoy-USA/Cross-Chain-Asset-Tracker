@@ -1,12 +1,24 @@
 package com.crosschain.assettracker.domain.model
 
-enum class Chain(val rpcUrl: String, val chainId: Int) {
+import com.crosschain.assettracker.constants.ArbitrumSepoliaConstants
+import com.crosschain.assettracker.constants.EthereumSepoliaConstants
+
+enum class Chain(
+    val chainId: String,
+    val rpcUrl: String,
+    val rebaseTokenAddress: String,
+    val linkTokenAddress: String
+) {
     ETHEREUM(
-        rpcUrl = "https://eth-sepolia.g.alchemy.com/v2/6dWSSrHidtXsRg2VcHlfy",
-        11155111
+        EthereumSepoliaConstants.chainId,
+        EthereumSepoliaConstants.rpcUrl,
+        EthereumSepoliaConstants.rebaseTokenAddress,
+        EthereumSepoliaConstants.linkTokenAddress
     ),
     ARBITRUM(
-        rpcUrl = "https://arb-sepolia.g.alchemy.com/v2/6dWSSrHidtXsRg2VcHlfy",
-        421614
+        ArbitrumSepoliaConstants.chainId,
+        ArbitrumSepoliaConstants.rpcUrl,
+        ArbitrumSepoliaConstants.rebaseTokenAddress,
+        ArbitrumSepoliaConstants.linkTokenAddress
     )
 }

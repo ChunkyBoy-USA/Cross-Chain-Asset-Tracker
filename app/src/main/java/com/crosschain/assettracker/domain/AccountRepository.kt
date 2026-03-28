@@ -1,5 +1,6 @@
 package com.crosschain.assettracker.domain
 
 interface AccountRepository {
-    fun loadAccounts(): Boolean
+    fun loadAccountFromAppKit(): Boolean
+    fun getCurrentAccountAddress(): String?
 }
