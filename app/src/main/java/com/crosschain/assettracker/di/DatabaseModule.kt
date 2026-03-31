@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.crosschain.assettracker.data.local.database.AppDatabase
+import com.crosschain.assettracker.data.local.database.dao.CcipSentRequestDao
 import com.crosschain.assettracker.data.local.database.dao.RebaseTokenMetaDataDao
 import dagger.Module
 import dagger.Provides
@@ -22,9 +23,13 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "asset_tracker_db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides
-    fun provideRebaseTokenMetadataDao(db: AppDatabase): RebaseTokenMetaDataDao = db.rebaseTokenMetaDataDao()
+    fun provideRebaseTokenMetadataDao(db: AppDatabase): RebaseTokenMetaDataDao =
+        db.rebaseTokenMetaDataDao()
+
+    @Provides
+    fun provideCcipSentRequestDao(db: AppDatabase): CcipSentRequestDao = db.ccipSentRequestDao()
 }

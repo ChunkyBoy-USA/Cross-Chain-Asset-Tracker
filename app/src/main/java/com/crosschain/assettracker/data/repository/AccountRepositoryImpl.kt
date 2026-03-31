@@ -16,12 +16,15 @@ class AccountRepositoryImpl @Inject constructor(
     val encryptedDataRepository: EncryptedDataRepository
 ) : AccountRepository {
     override fun loadAccountFromAppKit() = flow {
-        AppKit.getAccount()?.let { account ->
-            Timber.tag(TAG).d("Account address loaded: ${account.address}")
+        val account = AppKit.getAccount()
+        if (account == null) {
+            Timber.tag(TAG).d("Account loaded is null")
+            emit(false)
+        } else {
+            Timber.tag(TAG).d("Account loaded: $account")
             encryptedDataRepository.saveString(AccountConstants.ACCOUNT_ADDRESS_PREF_KEY, account.address)
             emit(true)
         }
-        emit(false)
     }.flowOn(Dispatchers.IO)
 
     override fun getCurrentAccountAddress(): String? {

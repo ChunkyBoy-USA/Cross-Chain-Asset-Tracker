@@ -1,4 +1,4 @@
-package com.crosschain.assettracker.data.local.database.entities
+package com.crosschain.assettracker.data.local.database.entity
 
 import androidx.room.Entity
 

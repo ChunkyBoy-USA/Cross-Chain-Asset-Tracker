@@ -4,7 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.crosschain.assettracker.data.local.database.entities.RebaseTokenMetadataEntity
+import com.crosschain.assettracker.data.local.database.entity.RebaseTokenMetadataEntity
 
 @Dao
 interface RebaseTokenMetaDataDao {

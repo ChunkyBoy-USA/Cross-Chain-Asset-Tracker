@@ -61,6 +61,15 @@ class BlockchainService @Inject constructor() {
         }
     }
 
+    suspend fun sendEthTransaction(
+        rpcUrl: String,
+        fromAddress: String,
+        toAddress: String,
+    ) {
+        val web3j = Web3j.build(HttpService(rpcUrl))
+
+    }
+
     companion object {
         const val TAG = "BlockchainService"
     }

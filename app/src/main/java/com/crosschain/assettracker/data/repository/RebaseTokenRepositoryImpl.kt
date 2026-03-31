@@ -2,7 +2,7 @@ package com.crosschain.assettracker.data.repository
 
 import com.crosschain.assettracker.constants.RebaseTokenConstants
 import com.crosschain.assettracker.data.local.database.dao.RebaseTokenMetaDataDao
-import com.crosschain.assettracker.data.local.database.entities.RebaseTokenMetadataEntity
+import com.crosschain.assettracker.data.local.database.entity.RebaseTokenMetadataEntity
 import com.crosschain.assettracker.data.network.BlockchainService
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
