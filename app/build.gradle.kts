@@ -89,7 +89,6 @@ dependencies {
     implementation(libs.reown.core)
     // For dApp applications
     implementation(libs.reown.appkit)
-    implementation(libs.reown.sign)
     // For pure blockchain interaction
     implementation(libs.web3j.core)
     implementation(libs.room.runtime)

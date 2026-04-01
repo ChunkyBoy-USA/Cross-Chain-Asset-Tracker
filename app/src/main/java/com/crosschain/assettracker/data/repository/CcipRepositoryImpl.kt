@@ -15,9 +15,9 @@ import com.crosschain.assettracker.domain.model.TransferStatus
 import com.crosschain.assettracker.domain.model.toCcipSentRequestEntity
 import com.crosschain.assettracker.domain.model.toCcipTransfer
 import com.reown.appkit.client.AppKit
-import com.reown.sign.client.Sign
-import com.reown.sign.client.Sign.Model.JsonRpcResponse
-import com.reown.sign.client.SignClient
+import com.reown.appkit.client.Modal
+import com.reown.appkit.client.models.request.Request
+import com.reown.appkit.client.models.request.SentRequestResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -53,58 +53,76 @@ class CcipRepositoryImpl @Inject constructor(
 ) : CcipRepository {
 
     fun initSignClientDelegate() {
-        SignClient.setDappDelegate(object : SignClient.DappDelegate {
-            override fun onConnectionStateChange(state: Sign.Model.ConnectionState) {
+        AppKit.setDelegate(object : AppKit.ModalDelegate {
+            override fun onConnectionStateChange(state: Modal.Model.ConnectionState) {
                 Timber.tag(TAG).d("onConnectionStateChange, state: $state")
             }
 
-            override fun onError(error: Sign.Model.Error) {
+            override fun onError(error: Modal.Model.Error) {
                 Timber.tag(TAG).d("onError, error: $error")
             }
 
-            override fun onProposalExpired(proposal: Sign.Model.ExpiredProposal) {
+            override fun onProposalExpired(proposal: Modal.Model.ExpiredProposal) {
                 Timber.tag(TAG).d("onProposalExpired, proposal: $proposal")
             }
 
-            override fun onRequestExpired(request: Sign.Model.ExpiredRequest) {
+            override fun onRequestExpired(request: Modal.Model.ExpiredRequest) {
                 Timber.tag(TAG).d("onRequestExpired, request: $request")
             }
 
-            override fun onSessionApproved(approvedSession: Sign.Model.ApprovedSession) {
+            override fun onSessionApproved(approvedSession: Modal.Model.ApprovedSession) {
                 Timber.tag(TAG).d("onSessionApproved, approvedSession: $approvedSession")
             }
 
-            override fun onSessionDelete(deletedSession: Sign.Model.DeletedSession) {
+            override fun onSessionDelete(deletedSession: Modal.Model.DeletedSession) {
                 Timber.tag(TAG).d("onSessionDelete, onSessionDelete: $deletedSession")
             }
 
-            override fun onSessionEvent(sessionEvent: Sign.Model.SessionEvent) {
+            override fun onSessionEvent(sessionEvent: Modal.Model.SessionEvent) {
                 Timber.tag(TAG).d("onSessionEvent, sessionEvent: $sessionEvent")
             }
 
-            override fun onSessionExtend(session: Sign.Model.Session) {
+            override fun onSessionExtend(session: Modal.Model.Session) {
                 Timber.tag(TAG).d("onSessionExtend, session: $session")
             }
 
-            override fun onSessionRejected(rejectedSession: Sign.Model.RejectedSession) {
+            override fun onSessionRejected(rejectedSession: Modal.Model.RejectedSession) {
                 Timber.tag(TAG).d("onSessionRejected, rejectedSession: $rejectedSession")
             }
 
-            override fun onSessionRequestResponse(response: Sign.Model.SessionRequestResponse) {
+            override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) {
                 Timber.tag(TAG).d("onSessionRequestResponse, response: $response")
-                val jsonRpcResult = response.result
-                if (jsonRpcResult is JsonRpcResponse.JsonRpcResult) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        ccipSentRequestDao.updateCcipSentRequestTxHash(
-                            jsonRpcResult.result,
-                            response.topic
-                        )
+                when (val jsonRpcResult = response.result) {
+                    is Modal.Model.JsonRpcResponse.JsonRpcResult -> {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            ccipSentRequestDao.updateCcipSentRequestTxHash(
+                                jsonRpcResult.result,
+                                response.topic
+                            )
+                        }
+                    }
+
+                    is Modal.Model.JsonRpcResponse.JsonRpcError -> {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            ccipSentRequestDao.clearAllCcipSentRequests()
+                        }
                     }
                 }
             }
 
-            override fun onSessionUpdate(updatedSession: Sign.Model.UpdatedSession) {
+            override fun onSessionUpdate(updatedSession: Modal.Model.UpdatedSession) {
                 Timber.tag(TAG).d("onSessionUpdate, updatedSession: $updatedSession")
+            }
+
+            override fun onSessionAuthenticateResponse(sessionAuthenticateResponse: Modal.Model.SessionAuthenticateResponse) {
+                Timber.tag(TAG)
+                    .d("onSessionAuthenticateResponse, sessionAuthenticateResponse: $sessionAuthenticateResponse")
+                super.onSessionAuthenticateResponse(sessionAuthenticateResponse)
+            }
+
+            override fun onSIWEAuthenticationResponse(response: Modal.Model.SIWEAuthenticateResponse) {
+                Timber.tag(TAG).d("onSIWEAuthenticationResponse, response: $response")
+                super.onSIWEAuthenticationResponse(response)
             }
 
         })
@@ -177,7 +195,7 @@ class CcipRepositoryImpl @Inject constructor(
                 ),
                 outputParameters = listOf(object : TypeReference<Uint256>() {})
             )
-            Timber.tag(TAG).d(ccipFee.toLong().toString())
+            Timber.tag(TAG).d("ccipFee: ${ccipFee.toLong()}") //28554418361146347
 
             val approveCcipFee = service.sendEthCall<Boolean>(
                 rpcUrl = sourceChain.rpcUrl,
@@ -199,7 +217,10 @@ class CcipRepositoryImpl @Inject constructor(
                 fromAddress = accountAddress,
                 toAddress = sourceChain.rebaseTokenAddress,
                 methodName = APPROVE_FUNCTION,
-                inputParameters = listOf(Address(sourceChain.ccipRouterAddress), Uint256(amountToSend)),
+                inputParameters = listOf(
+                    Address(sourceChain.ccipRouterAddress),
+                    Uint256(amountToSend)
+                ),
                 outputParameters = listOf(object : TypeReference<Bool>() {})
             )
             if (!approveAmountToSend) {
@@ -216,16 +237,15 @@ class CcipRepositoryImpl @Inject constructor(
             )
             val encodedFunctionData = FunctionEncoder.encode(function)
             val method = METHOD_ETH_SEND_TRANSACTION
-            val txParams = """
-            [{
-                "from": "$accountAddress",
-                "to": "${sourceChain.ccipRouterAddress}",
-                "data": "$encodedFunctionData",
-                "value": ${Numeric.toHexStringWithPrefix(ccipFee)}
-            }]
-        """.trimIndent()
+            val txParams = "[{\"from\":\"$accountAddress\"," +
+                        "\"to\":\"${sourceChain.ccipRouterAddress}\"," +
+                        "\"data\":\"$encodedFunctionData\"," +
+                        "\"gas\":\"${Numeric.toHexStringWithPrefix(BigInteger("500000"))}\"" + //TODO: optimize gas limit
+                        ",\"value\":\"${Numeric.toHexStringWithPrefix(ccipFee)}\"}]"
 
             val activeSessionTopic = AppKit.getActiveSession()
+            Timber.tag(TAG).d("ActiveSessionTopic : $activeSessionTopic")
+
             if (activeSessionTopic?.topic.isNullOrBlank()) {
                 Timber.tag(TAG).e("ActiveSessionTopic is null or empty string")
                 trySend(false)
@@ -233,22 +253,21 @@ class CcipRepositoryImpl @Inject constructor(
                 return@callbackFlow
             }
 
-            val request = Sign.Params.Request(
+            val request = Request(
                 method = method,
-                params = txParams,
-                chainId = sourceChain.chainId,
-                sessionTopic = activeSessionTopic.topic
+                params = txParams
             )
-            SignClient.request(request, onSuccess = { sentRequest ->
-                Timber.tag(TAG).d("Succeed to request, result: $sentRequest")
+
+            AppKit.request(request, onSuccess = { sentRequestResult ->
+                Timber.tag(TAG).d("Succeed to request, result: $sentRequestResult")
                 coroutineScope.launch(Dispatchers.IO) {
                     ccipSentRequestDao.insertCcipSentRequest(
                         CcipTransfer(
-                            requestId = sentRequest.requestId,
-                            sessionTopic = sentRequest.sessionTopic,
-                            method = sentRequest.method,
-                            params = sentRequest.params,
-                            chainId = sentRequest.chainId,
+                            requestId = (sentRequestResult as SentRequestResult.WalletConnect).requestId,
+                            sessionTopic = sentRequestResult.sessionTopic,
+                            method = sentRequestResult.method,
+                            params = sentRequestResult.params,
+                            chainId = sentRequestResult.chainId,
                             status = TransferStatus.INITIATED,
                             txHash = null,
                             ccipMessageId = null,
@@ -273,7 +292,7 @@ class CcipRepositoryImpl @Inject constructor(
         }
 
         awaitClose {
-            Timber.tag(TAG).d( "sendRebaseToken() callback flow close")
+            Timber.tag(TAG).d("sendRebaseToken() callback flow close")
         }
     }.flowOn(Dispatchers.IO)
 

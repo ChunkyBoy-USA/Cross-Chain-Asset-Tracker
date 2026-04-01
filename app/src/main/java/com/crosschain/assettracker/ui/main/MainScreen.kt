@@ -122,9 +122,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 ) {
                     if (ethRebaseTokenBalanceInfo != null && arbRebaseTokenBalanceInfo != null) {
                         BalanceCard(ethRebaseTokenBalanceInfo)
-                        HorizontalDivider(modifier = Modifier.height(24.dp))
+                        HorizontalDivider(modifier = Modifier.height(24.dp), color = Color.Transparent)
                         BalanceCard(arbRebaseTokenBalanceInfo)
-                        HorizontalDivider(modifier = Modifier.height(24.dp))
+                        HorizontalDivider(modifier = Modifier.height(24.dp), color = Color.Transparent)
                         CcipTrackingCard(state) { amountToSend ->
                             viewModel.setIntent(MainIntent.TransferTokens(amountToSend, Chain.ETHEREUM, Chain.ARBITRUM))
                         }

@@ -31,7 +31,7 @@ class AssetTrackerApp : Application() {
         val projectId = BuildConfig.REOWN_PROJECT_ID
         val connectionType = ConnectionType.AUTOMATIC
         val appMetaData = Core.Model.AppMetaData(
-            name = "Meta Mask",
+            name = "Asset Tracker",
             description = "My first Android dApp",
             url = "https://Cross-Chain-Asset-Tracker.com",
             icons = listOf("https://gblobscdn.gitbook.com/spaces%2F-LJJeCjcLrr53DcT1Ml7%2Favatar.png?alt=media"),
