@@ -1,13 +1,20 @@
 package com.crosschain.assettracker.ui.main
 
+import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -27,8 +34,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -39,6 +46,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.ViewCompat.animate
+import androidx.core.widget.ContentLoadingProgressBar
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.model.TransferStatus
@@ -204,16 +213,18 @@ fun CcipTrackingCard(state: MainUiState, onSendClick: (Long) -> Unit) {
             } else {
                 Text("From: ${state.ccipTransfer.sourceChain} -> To: ${state.ccipTransfer.destinationChain}")
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Status: ${state.ccipTransfer.status}", fontWeight = FontWeight.Medium)
+                Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+                    Text(modifier = Modifier.weight(1f), text = "Status: ${state.ccipTransfer.status}")
+                    if (state.ccipTransfer.status != TransferStatus.SUCCESS || state.ccipTransfer.status != TransferStatus.FAILED) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Bottom).size(20.dp), strokeWidth = 3.dp)
+                    }
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { state.ccipTransfer.statusToProgress()},
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp),
-                    color = ProgressIndicatorDefaults.linearColor,
-                    trackColor = ProgressIndicatorDefaults.linearTrackColor,
-                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap
+                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                    gapSize = 0.dp,
+                    drawStopIndicator = {}
                 )
                 Text(
                     text = "${(state.ccipTransfer.statusToProgress() * 100).toInt()}%",

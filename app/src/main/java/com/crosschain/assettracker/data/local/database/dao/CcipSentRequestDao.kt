@@ -1,10 +1,12 @@
 package com.crosschain.assettracker.data.local.database.dao
 
+import android.R
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.crosschain.assettracker.data.local.database.entity.CcipSentRequestEntity
+import com.crosschain.assettracker.domain.model.TransferStatus
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -23,4 +25,7 @@ interface CcipSentRequestDao {
 
     @Query("DELETE FROM ccip_sent_request")
     suspend fun clearAllCcipSentRequests()
+
+    @Query("UPDATE ccip_sent_request SET ccipMessageId = :ccipMessageId, status = :newStatus WHERE txHash = :txHash")
+    suspend fun insertCcipSentRequestMessageId(ccipMessageId: String?, txHash: String, newStatus: TransferStatus)
 }

@@ -162,7 +162,7 @@ class CcipRepositoryImpl @Inject constructor(
                 Address(sourceChain.rebaseTokenAddress),
                 Uint256(amountToSend)
             )
-            val gasLimit = Uint256(1000_000)
+            val gasLimit = Uint256(500_000) // TODO: Set a fixed gas limit for now
             val allowOutOfOrder = Bool(true)
             val encodedArgs =
                 GENERIC_EXTRA_ARGS_V2_TAG + TypeEncoder.encode(gasLimit) + TypeEncoder.encode(
@@ -178,6 +178,7 @@ class CcipRepositoryImpl @Inject constructor(
                 Address(sourceChain.linkTokenAddress),
                 extraArgs
             )
+            Timber.tag(TAG).d("message: $message")
 
             // Foundry CLI as reference
 //        cast call  0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59 --rpc-url https://eth-sepolia.g.alchemy.co
@@ -195,18 +196,20 @@ class CcipRepositoryImpl @Inject constructor(
                 ),
                 outputParameters = listOf(object : TypeReference<Uint256>() {})
             )
-            Timber.tag(TAG).d("ccipFee: ${ccipFee.toLong()}") //28554418361146347
+            val ccipFeeWithBuffer = ccipFee.add(ccipFee.toBigDecimal().movePointLeft(1).toBigInteger()) // Give 10% buffer
+            Timber.tag(TAG).d("ccipFee: ${ccipFee.toLong()}")
+            Timber.tag(TAG).d("ccipFeeWithBuffer: ${ccipFeeWithBuffer.toLong()}")
 
             val approveCcipFee = service.sendEthCall<Boolean>(
                 rpcUrl = sourceChain.rpcUrl,
                 fromAddress = accountAddress,
                 toAddress = sourceChain.linkTokenAddress,
                 methodName = APPROVE_FUNCTION,
-                inputParameters = listOf(Address(sourceChain.ccipRouterAddress), Uint256(ccipFee)),
+                inputParameters = listOf(Address(sourceChain.ccipRouterAddress), Uint256(ccipFeeWithBuffer)),
                 outputParameters = listOf(object : TypeReference<Bool>() {})
             )
             if (!approveCcipFee) {
-                Timber.tag(TAG).e("Fail to approve Link fee")
+                Timber.tag(TAG).e("Fail to approve routerAddress to spend Link Token")
                 trySend(false)
                 close()
                 return@callbackFlow
@@ -224,7 +227,7 @@ class CcipRepositoryImpl @Inject constructor(
                 outputParameters = listOf(object : TypeReference<Bool>() {})
             )
             if (!approveAmountToSend) {
-                Timber.tag(TAG).e("Fail to approve rebase token amount")
+                Timber.tag(TAG).e("Fail to approve routerAddress to spend Rebase Token")
                 trySend(false)
                 close()
                 return@callbackFlow
@@ -241,10 +244,12 @@ class CcipRepositoryImpl @Inject constructor(
                         "\"to\":\"${sourceChain.ccipRouterAddress}\"," +
                         "\"data\":\"$encodedFunctionData\"," +
                         "\"gas\":\"${Numeric.toHexStringWithPrefix(BigInteger("500000"))}\"" + //TODO: optimize gas limit
-                        ",\"value\":\"${Numeric.toHexStringWithPrefix(ccipFee)}\"}]"
+                        ",\"value\":\"0x0\"}]"
 
             val activeSessionTopic = AppKit.getActiveSession()
             Timber.tag(TAG).d("ActiveSessionTopic : $activeSessionTopic")
+            val account = AppKit.getAccount()
+            Timber.tag(TAG).d("account : $account")
 
             if (activeSessionTopic?.topic.isNullOrBlank()) {
                 Timber.tag(TAG).e("ActiveSessionTopic is null or empty string")
@@ -296,7 +301,22 @@ class CcipRepositoryImpl @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
+    override suspend fun getCcipMessageId(txHash: String, sourceChain: Chain): String? {
+        val receipt = service.getEthTransactionReceipt(sourceChain.rpcUrl, txHash)
+        if (receipt == null) {
+            Timber.tag(TAG).d("getCcipMessageId() receipt is null")
+            return null
+        } else {
+            val ccipLog = receipt.logs.find { it.topics.contains(CCIP_SEND_REQUESTED_TOPIC) }
+            val messageId = "0x" + ccipLog?.data?.substring(834, 834 + 64) // TODO: Hard code for now
+            Timber.tag(TAG).d("getCcipMessageId() messageId: $messageId")
+            ccipSentRequestDao.insertCcipSentRequestMessageId(messageId, txHash, TransferStatus.WAITING_FOR_FINALITY)
+            return messageId
+        }
+    }
+
     companion object {
         const val TAG = "CcipRepositoryImpl"
+        const val CCIP_SEND_REQUESTED_TOPIC = "0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd"
     }
 }

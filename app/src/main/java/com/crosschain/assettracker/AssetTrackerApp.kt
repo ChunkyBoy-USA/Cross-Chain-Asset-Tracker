@@ -3,6 +3,7 @@ package com.crosschain.assettracker
 import android.app.Application
 import com.crosschain.assettracker.data.repository.CcipRepositoryImpl
 import com.crosschain.assettracker.domain.model.Chain
+import com.crosschain.assettracker.ui.main.MainViewModel
 import com.reown.android.Core
 import com.reown.android.CoreClient
 import com.reown.android.relay.ConnectionType
@@ -74,12 +75,15 @@ class AssetTrackerApp : Application() {
                 optionalMethods = ethOptionalMethods,
                 events = EthUtils.ethEvents,
                 token = ethToken,
-                rpcUrl = Chain.ETHEREUM.rpcUrl
+                rpcUrl = Chain.ETHEREUM.rpcUrl,
             )
         )
 
+        Timber.tag(TAG).d("initialize")
         AppKit.setChains(chains)
+        Timber.tag(TAG).d("setChains")
         ccipRepository.initSignClientDelegate()
+        Timber.tag(TAG).d("initSignClientDelegate")
     }
 
     companion object {

@@ -16,4 +16,6 @@ interface CcipRepository {
     ) : Flow<Boolean>
 
     fun getPendingTransfer() : Flow<CcipTransfer?>
+
+    suspend fun getCcipMessageId(txHash: String, sourceChain: Chain) : String?
 }

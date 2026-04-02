@@ -1,5 +1,6 @@
 package com.crosschain.assettracker.ui.main
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.crosschain.assettracker.constants.AccountConstants
 import com.crosschain.assettracker.data.local.EncryptedDataRepository
@@ -16,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.math.BigInteger
 import javax.inject.Inject
 
@@ -30,6 +32,7 @@ class MainViewModel @Inject constructor(
     override fun createInitialState(): MainUiState = MainUiState()
 
     override fun handleIntent(intent: MainIntent) {
+        Timber.tag(TAG).d("handleIntent, intent = $intent")
         when (intent) {
             is MainIntent.LoadBalance -> {
                 val accountAddress = accountRepository.getCurrentAccountAddress() ?: ""
@@ -143,10 +146,27 @@ class MainViewModel @Inject constructor(
 
             ccipRepository.getPendingTransfer().collect {
                 if (it != null) {
+                    if (!it.txHash.isNullOrBlank() && it.ccipMessageId.isNullOrBlank()) {
+                        setState { copy(isLoading = true) }
+                        val chain = if (it.sourceChain == Chain.ETHEREUM.name) {
+                            Chain.ETHEREUM
+                        } else {
+                            Chain.ARBITRUM
+                        }
+                        ccipRepository.getCcipMessageId(it.txHash, chain)
+                        setState { copy(isLoading = false) }
+                    } else {
+
+
+                    }
                     setState { copy(ccipTransfer = it) }
                 }
             }
         }
+    }
+
+    companion object {
+        const val TAG = "MainViewModel"
     }
 }
 

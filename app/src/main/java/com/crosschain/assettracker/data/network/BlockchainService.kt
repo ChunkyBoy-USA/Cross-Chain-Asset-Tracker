@@ -10,10 +10,12 @@ import org.web3j.protocol.Web3j
 import org.web3j.abi.datatypes.Type
 import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.methods.request.Transaction
+import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.http.HttpService
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.jvm.optionals.getOrNull
 
 @Singleton
 class BlockchainService @Inject constructor() {
@@ -46,6 +48,7 @@ class BlockchainService @Inject constructor() {
                 throw Exception(response.error.message)
             }
             val results = FunctionReturnDecoder.decode(response.value, function.outputParameters)
+            Timber.tag(TAG).d("sendEthCall results: $results")
             if (results.isNotEmpty()) {
                 val value = results[0].value
                 if (value is T) {
@@ -61,13 +64,16 @@ class BlockchainService @Inject constructor() {
         }
     }
 
-    suspend fun sendEthTransaction(
-        rpcUrl: String,
-        fromAddress: String,
-        toAddress: String,
-    ) {
+    suspend fun getEthTransactionReceipt(rpcUrl: String, txHash: String): TransactionReceipt? = withContext(Dispatchers.IO) {
         val web3j = Web3j.build(HttpService(rpcUrl))
-
+        val response = web3j.ethGetTransactionReceipt(txHash).send()
+        val receipt = response.transactionReceipt
+        if (receipt != null && receipt.isPresent) {
+            return@withContext receipt.getOrNull()
+        } else {
+            Timber.tag(TAG).d("No transaction receipt found for txHash: $txHash, rpcUrl: $rpcUrl")
+            return@withContext null
+        }
     }
 
     companion object {
