@@ -1,6 +1,19 @@
 package com.crosschain.assettracker.data.network
 
+import com.crosschain.assettracker.constants.WalletConnectConstants.METHOD_ETH_SEND_TRANSACTION
+import com.reown.appkit.client.AppKit
+import com.reown.appkit.client.models.request.Request
+import com.reown.appkit.client.models.request.SentRequestResult
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.withContext
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
@@ -10,9 +23,13 @@ import org.web3j.protocol.Web3j
 import org.web3j.abi.datatypes.Type
 import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.methods.request.Transaction
+import org.web3j.protocol.core.methods.response.EthBlock
 import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.http.HttpService
+import org.web3j.protocol.websocket.WebSocketService
+import org.web3j.utils.Numeric
 import timber.log.Timber
+import java.math.BigInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.jvm.optionals.getOrNull
@@ -75,6 +92,75 @@ class BlockchainService @Inject constructor() {
             return@withContext null
         }
     }
+
+    fun observeEthBlock(
+        rpcUrl: String
+    ): Flow<EthBlock> = flow<EthBlock> {
+        val wsService = WebSocketService(rpcUrl, true)
+        wsService.connect()
+        val web3j = Web3j.build(wsService)
+        web3j.blockFlowable(false).asFlow().collectLatest {
+            emit(it)
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun sendEthTransaction(
+        coroutineScope: CoroutineScope,
+        fromAddress: String,
+        toAddress: String,
+        methodName: String,
+        inputParameters: List<Type<*>>,
+        outputParameters: List<TypeReference<*>>,
+        value: String = "0x0",
+        gas: BigInteger = BigInteger("500000") //TODO: Fixed gas for now
+    ): Flow<Long?> = callbackFlow {
+        val activeSessionTopic = AppKit.getActiveSession()
+        Timber.tag(TAG).d("ActiveSessionTopic : $activeSessionTopic")
+        val account = AppKit.getAccount()
+        Timber.tag(TAG).d("account : $account")
+
+        if (activeSessionTopic?.topic.isNullOrBlank()) {
+            Timber.tag(TAG).e("ActiveSessionTopic is null or empty string")
+            trySend(null)
+            close()
+            return@callbackFlow
+        }
+        val function = Function(
+            methodName,
+            inputParameters,
+            outputParameters
+        )
+
+        val txParams = "[{\"from\":\"$fromAddress\"," +
+                "\"to\":\"${toAddress}\"," +
+                "\"data\":\"${FunctionEncoder.encode(function)}\"," +
+                "\"gas\":\"${Numeric.toHexStringWithPrefix(gas)}\"" +
+                ",\"value\":\"$value\"}]"
+
+        val request = Request(
+            method = METHOD_ETH_SEND_TRANSACTION,
+            params = txParams
+        )
+
+        AppKit.request(request, onSuccess = { sentRequestResult ->
+            Timber.tag(TAG).d("Succeed to request, result: $sentRequestResult")
+            coroutineScope.launch(Dispatchers.IO) {
+                val requestId = (sentRequestResult as SentRequestResult.WalletConnect).requestId
+                trySend(requestId)
+                close()
+            }
+        }, onError = { error ->
+            Timber.tag(TAG).e("Fail to request, error: $error")
+            coroutineScope.launch {
+                trySend(null)
+                close()
+            }
+        })
+
+        awaitClose {
+            Timber.tag(TAG).d("sendEthTransaction() callback flow close")
+        }
+    }.flowOn(Dispatchers.IO)
 
     companion object {
         const val TAG = "BlockchainService"

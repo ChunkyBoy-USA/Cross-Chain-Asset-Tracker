@@ -1,20 +1,16 @@
 package com.crosschain.assettracker.ui.main
 
-import android.widget.ProgressBar
 import android.widget.Toast
-import androidx.compose.animation.core.animate
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -24,7 +20,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -34,8 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -46,8 +40,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.ViewCompat.animate
-import androidx.core.widget.ContentLoadingProgressBar
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.model.TransferStatus
@@ -58,7 +50,7 @@ import com.crosschain.assettracker.ui.mvi.main.MainUiState
 import com.crosschain.assettracker.ui.theme.LocalColorScheme
 import com.reown.appkit.ui.components.internal.AppKitComponent
 import kotlinx.coroutines.launch
-import okhttp3.internal.toLongOrDefault
+import java.math.BigInteger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +127,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         BalanceCard(arbRebaseTokenBalanceInfo)
                         HorizontalDivider(modifier = Modifier.height(24.dp), color = Color.Transparent)
                         CcipTrackingCard(state) { amountToSend ->
-                            viewModel.setIntent(MainIntent.TransferTokens(amountToSend, Chain.ETHEREUM, Chain.ARBITRUM))
+                            viewModel.setIntent(MainIntent.TransferTokens(BigInteger(amountToSend), Chain.ETHEREUM, Chain.ARBITRUM))
                         }
                     }
                 }
@@ -187,8 +179,8 @@ fun BalanceCard(balanceInfo: BalanceInfo) {
 }
 
 @Composable
-fun CcipTrackingCard(state: MainUiState, onSendClick: (Long) -> Unit) {
-    var amount by rememberSaveable { mutableLongStateOf(0) }
+fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit) {
+    var amount by rememberSaveable { mutableStateOf("0") }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -201,9 +193,9 @@ fun CcipTrackingCard(state: MainUiState, onSendClick: (Long) -> Unit) {
 
             if (state.ccipTransfer == null) {
                 TextField(
-                    value = amount.toString(),
+                    value = amount,
                     onValueChange = { value ->
-                        amount = value.toLongOrDefault(0)
+                        amount = value
                     },
                     label = { Text("Amount") }
                 )
@@ -211,7 +203,7 @@ fun CcipTrackingCard(state: MainUiState, onSendClick: (Long) -> Unit) {
                     Text("Send cross chain tokens")
                 }
             } else {
-                Text("From: ${state.ccipTransfer.sourceChain} -> To: ${state.ccipTransfer.destinationChain}")
+                Text("From: ${state.ccipTransfer.sourceChainName} -> To: ${state.ccipTransfer.destinationChainName}")
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
                     Text(modifier = Modifier.weight(1f), text = "Status: ${state.ccipTransfer.status}")

@@ -2,10 +2,10 @@ package com.crosschain.assettracker.di
 
 import android.content.Context
 import androidx.room.Room
-import androidx.room.RoomDatabase
 import com.crosschain.assettracker.data.local.database.AppDatabase
 import com.crosschain.assettracker.data.local.database.dao.CcipSentRequestDao
 import com.crosschain.assettracker.data.local.database.dao.RebaseTokenMetaDataDao
+import com.crosschain.assettracker.data.local.database.dao.RouterAllowanceDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,4 +32,6 @@ object DatabaseModule {
 
     @Provides
     fun provideCcipSentRequestDao(db: AppDatabase): CcipSentRequestDao = db.ccipSentRequestDao()
+    @Provides
+    fun provideRouterAllowanceDao(db: AppDatabase): RouterAllowanceDao = db.routerAllowanceDao()
 }

@@ -15,11 +15,12 @@ data class CcipTransfer(
     val method: String,
     val params: String,
     val chainId: String,
-    val txHash: String?,
-    val ccipMessageId: String?,
+    val txHash: String? = null,
+    val ccipMessageId: String? = null,
+    val offRampAddress: String?  = null,
     val status: TransferStatus,
-    val sourceChain: String,
-    val destinationChain: String
+    val sourceChainName: String,
+    val destinationChainName: String,
 )
 
 fun CcipSentRequestEntity.toCcipTransfer() = CcipTransfer(
@@ -31,8 +32,9 @@ fun CcipSentRequestEntity.toCcipTransfer() = CcipTransfer(
     txHash = txHash,
     ccipMessageId = ccipMessageId,
     status = status,
-    sourceChain = sourceChain,
-    destinationChain = destinationChain
+    sourceChainName = sourceChainName,
+    destinationChainName = destinationChainName,
+    offRampAddress = offRampAddress,
 )
 
 fun CcipTransfer.toCcipSentRequestEntity() = CcipSentRequestEntity(
@@ -44,8 +46,9 @@ fun CcipTransfer.toCcipSentRequestEntity() = CcipSentRequestEntity(
     txHash = txHash,
     ccipMessageId = ccipMessageId,
     status = status,
-    sourceChain = sourceChain,
-    destinationChain = destinationChain
+    sourceChainName = sourceChainName,
+    destinationChainName = destinationChainName,
+    offRampAddress = offRampAddress,
 )
 
 fun CcipTransfer.statusToProgress(): Float = when (status) {

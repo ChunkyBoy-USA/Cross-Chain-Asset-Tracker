@@ -1,6 +1,5 @@
 package com.crosschain.assettracker.ui.main
 
-import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.crosschain.assettracker.constants.AccountConstants
 import com.crosschain.assettracker.data.local.EncryptedDataRepository
@@ -8,18 +7,23 @@ import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.AccountRepository
 import com.crosschain.assettracker.domain.RebaseTokenRepository
 import com.crosschain.assettracker.domain.CcipRepository
+import com.crosschain.assettracker.domain.model.nameToChain
 import com.crosschain.assettracker.ui.mvi.MviViewModel
 import com.crosschain.assettracker.ui.mvi.main.MainIntent
 import com.crosschain.assettracker.ui.mvi.main.MainSideEffect
 import com.crosschain.assettracker.ui.mvi.main.MainUiState
-import com.reown.appkit.client.AppKit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.math.BigInteger
 import javax.inject.Inject
+import kotlin.text.toBigInteger
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -65,6 +69,7 @@ class MainViewModel @Inject constructor(
 
     private fun observeBalance(chain: Chain, accountAddress: String) {
         viewModelScope.launch {
+
             rebaseTokenRepository.getTokenBalance(chain, accountAddress)
                 .onStart { setState { copy(isLoading = true) } }
                 .catch { e ->
@@ -80,6 +85,7 @@ class MainViewModel @Inject constructor(
                                     isLoading = arbRebaseTokenBalanceInfo == null
                                 )
                             }
+
                             Chain.ARBITRUM -> {
                                 copy(
                                     arbRebaseTokenBalanceInfo = balance,
@@ -104,17 +110,97 @@ class MainViewModel @Inject constructor(
     private fun ccipTransfer(
         sourceChain: Chain,
         destinationChain: Chain,
-        amountToSend: Long,
+        amountToSend: BigInteger,
         accountAddress: String
     ) {
         viewModelScope.launch {
-            ccipRepository.sendRebaseToken(
+            var ccipFeeAllowanceRequestId: Long? = null
+            var amountToSendAllowanceRequestId: Long? = null
+            val ccipFee = ccipRepository.getCcipFee(
                 accountAddress,
                 sourceChain,
                 destinationChain,
-                BigInteger.valueOf(amountToSend)
-            ).collect {
-                it
+                amountToSend
+            )
+            val ccipFeeWithBuffer = ccipFee.add(
+                ccipFee.toBigDecimal().movePointLeft(1).toBigInteger()
+            ) // Give 10% buffer
+
+            val linkAllowance = ccipRepository.getRouterAllowance(
+                sourceChain.ccipRouterAddress,
+                sourceChain.linkTokenAddress,
+                accountAddress,
+                sourceChain.chainId
+            )
+
+            if (linkAllowance == null ||
+                linkAllowance.allowance == null ||
+                linkAllowance.allowance.toBigInteger() < ccipFeeWithBuffer
+            ) {
+                ccipFeeAllowanceRequestId = ccipRepository.approveCcipFee(
+                    sourceChain.chainId,
+                    accountAddress,
+                    sourceChain.ccipRouterAddress,
+                    sourceChain.linkTokenAddress,
+                    ccipFeeWithBuffer
+                )
+                if (ccipFeeAllowanceRequestId == null) {
+                    setEffect(MainSideEffect.ShowToast("Fail to approve routerAddress to spend Link Token"))
+                    return@launch
+                }
+            }
+
+            val rebaseTokenAllowance = ccipRepository.getRouterAllowance(
+                sourceChain.ccipRouterAddress,
+                sourceChain.rebaseTokenAddress,
+                accountAddress,
+                sourceChain.chainId
+            )
+            if (rebaseTokenAllowance == null ||
+                rebaseTokenAllowance.allowance == null ||
+                rebaseTokenAllowance.allowance.toBigInteger() < amountToSend
+            ) {
+                amountToSendAllowanceRequestId = ccipRepository.approveTokenToSend(
+                    sourceChain.chainId,
+                    accountAddress,
+                    sourceChain.ccipRouterAddress,
+                    sourceChain.linkTokenAddress,
+                    amountToSend
+                )
+                if (amountToSendAllowanceRequestId == null) {
+                    setEffect(MainSideEffect.ShowToast("Fail to approve routerAddress to spend Rebase Token"))
+                    return@launch
+                }
+            }
+
+            if (amountToSendAllowanceRequestId != null || ccipFeeAllowanceRequestId != null) {
+                val amountToSendAllowanceFlow = ccipRepository.getRouterAllowanceFlow(
+                    sourceChain.ccipRouterAddress,
+                    sourceChain.rebaseTokenAddress,
+                    accountAddress,
+                    sourceChain.chainId
+                )
+
+                val ccipFeeAllowanceFlow = ccipRepository.getRouterAllowanceFlow(
+                    sourceChain.ccipRouterAddress,
+                    sourceChain.linkTokenAddress,
+                    accountAddress,
+                    sourceChain.chainId
+                )
+
+                combine(
+                    amountToSendAllowanceFlow,
+                    ccipFeeAllowanceFlow
+                ) { amountAllowance, ccipFeeAllowance ->
+                    val isAmountReady = (amountAllowance?.allowance?.toBigInteger()
+                        ?: BigInteger.ZERO) >= amountToSend
+                    val isFeeReady = (ccipFeeAllowance?.allowance?.toBigInteger()
+                        ?: BigInteger.ZERO) >= ccipFeeWithBuffer
+                    isAmountReady && isFeeReady
+                }.filter { it }.take(1).collect {
+                    ccipRepository.deletePendingRouterAllowance(amountToSendAllowanceRequestId.toString())
+                    ccipRepository.deletePendingRouterAllowance(ccipFeeAllowanceRequestId.toString())
+                }
             }
         }
     }
@@ -127,9 +213,22 @@ class MainViewModel @Inject constructor(
                 setEffect(MainSideEffect.ShowToast("Error loading account"))
             }.collect { isSuccessful ->
                 if (isSuccessful) {
-                    setState { copy(isLoading = false, shouldConnectWallet = false, ethRebaseTokenBalanceInfo = null, arbRebaseTokenBalanceInfo = null) }
+                    setState {
+                        copy(
+                            isLoading = false,
+                            shouldConnectWallet = false,
+                            ethRebaseTokenBalanceInfo = null,
+                            arbRebaseTokenBalanceInfo = null
+                        )
+                    }
                 } else {
-                    setState { copy(isError = true, errorMessage = "Fail to load account", isLoading = false) }
+                    setState {
+                        copy(
+                            isError = true,
+                            errorMessage = "Fail to load account",
+                            isLoading = false
+                        )
+                    }
                 }
             }
         }
@@ -148,16 +247,16 @@ class MainViewModel @Inject constructor(
                 if (it != null) {
                     if (!it.txHash.isNullOrBlank() && it.ccipMessageId.isNullOrBlank()) {
                         setState { copy(isLoading = true) }
-                        val chain = if (it.sourceChain == Chain.ETHEREUM.name) {
-                            Chain.ETHEREUM
-                        } else {
-                            Chain.ARBITRUM
-                        }
-                        ccipRepository.getCcipMessageId(it.txHash, chain)
+                        ccipRepository.getCcipMessageId(it.txHash, it.sourceChainName.nameToChain())
                         setState { copy(isLoading = false) }
-                    } else {
-
-
+                    } else if (!it.txHash.isNullOrBlank() && it.offRampAddress.isNullOrBlank()) {
+                        setState { copy(isLoading = true) }
+                        ccipRepository.getOffRampAddress(
+                            it.txHash,
+                            it.sourceChainName.nameToChain(),
+                            it.destinationChainName.nameToChain()
+                        )
+                        setState { copy(isLoading = false) }
                     }
                     setState { copy(ccipTransfer = it) }
                 }

@@ -44,3 +44,17 @@ enum class Chain(
         BigInteger(ArbitrumSepoliaConstants.CCIP_CHAIN_SELECTOR)
     )
 }
+
+fun String.nameToChain(): Chain {
+    return when(this) {
+        Chain.ETHEREUM.name -> {
+            Chain.ETHEREUM
+        }
+        Chain.ARBITRUM.name -> {
+            Chain.ARBITRUM
+        }
+        else -> {
+            throw IllegalArgumentException("Invalid chain name: $this")
+        }
+    }
+}
