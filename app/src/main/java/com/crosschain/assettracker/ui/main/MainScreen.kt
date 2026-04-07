@@ -27,7 +27,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,7 +50,6 @@ import com.crosschain.assettracker.ui.mvi.main.MainUiState
 import com.crosschain.assettracker.ui.theme.LocalColorScheme
 import com.reown.appkit.ui.components.internal.AppKitComponent
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import java.math.BigInteger
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,10 +122,11 @@ fun MainScreen(viewModel: MainViewModel) {
                         HorizontalDivider(modifier = Modifier.height(24.dp), color = Color.Transparent)
                         BalanceCard(arbRebaseTokenBalanceInfo)
                         HorizontalDivider(modifier = Modifier.height(24.dp), color = Color.Transparent)
-                        Timber.tag("MainScreen").d("state = $state")
-                        CcipTrackingCard(state) { amountToSend ->
+                        CcipTrackingCard(state, onSendClick = { amountToSend ->
                             viewModel.setIntent(MainIntent.TransferTokens(BigInteger(amountToSend), Chain.ETHEREUM, Chain.ARBITRUM))
-                        }
+                        }, onRestart = {
+                            viewModel.setIntent(MainIntent.DeleteTransfer(state.ccipTransfer?.requestId.toString()))
+                        })
                     }
                 }
 
@@ -178,7 +177,7 @@ fun BalanceCard(balanceInfo: BalanceInfo) {
 }
 
 @Composable
-fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit) {
+fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit, onRestart: () -> Unit) {
     var amount by rememberSaveable { mutableStateOf("0") }
 
     Card(
@@ -208,6 +207,10 @@ fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit) {
                     Text(modifier = Modifier.weight(1f), text = "Status: ${state.ccipTransfer.status}")
                     if (state.ccipTransfer.status != TransferStatus.SUCCESS && state.ccipTransfer.status != TransferStatus.FAILED) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Bottom).size(20.dp), strokeWidth = 3.dp)
+                    } else if (state.ccipTransfer.status == TransferStatus.SUCCESS || state.ccipTransfer.status == TransferStatus.FAILED) {
+                        Button(onClick = onRestart) {
+                            Text("Restart")
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))

@@ -36,4 +36,7 @@ interface RouterAllowanceDao {
 
     @Query("DELETE FROM pending_router_allowance WHERE requestId = :requestId")
     suspend fun deletePendingRouterAllowance(requestId: String)
+
+    @Query("DELETE FROM router_allowance")
+    suspend fun deleteAllRouterAllowance()
 }

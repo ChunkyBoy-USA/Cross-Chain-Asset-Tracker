@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEmpty
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
@@ -45,8 +46,8 @@ class MainViewModel @Inject constructor(
                 observeBalance(intent.chain, accountAddress)
             }
 
-            is MainIntent.TrackTransfer -> {
-                trackCcipTransfer(intent.messageId)
+            is MainIntent.DeleteTransfer -> {
+                deleteTransfer(intent.requestId)
             }
 
             is MainIntent.TransferTokens -> {
@@ -73,7 +74,9 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
 
             rebaseTokenRepository.getTokenBalance(chain, accountAddress)
-                .onStart { setState { copy(isLoading = true) } }
+                .onStart {
+                    setState { copy(isLoading = true) }
+                }
                 .catch { e ->
                     setState { copy(errorMessage = e.message, isLoading = false) }
                     setEffect(MainSideEffect.ShowToast("Error loading balance"))
@@ -96,15 +99,6 @@ class MainViewModel @Inject constructor(
                             }
                         }
                     }
-                }
-        }
-    }
-
-    private fun trackCcipTransfer(messageId: String) {
-        viewModelScope.launch {
-            ccipRepository.trackTransfer()
-                .collect { transfer ->
-                    setState { copy(ccipTransfer = transfer) }
                 }
         }
     }
@@ -309,6 +303,15 @@ class MainViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    private fun deleteTransfer(requestId: String) {
+        viewModelScope.launch {
+            ccipRepository.deleteCcipTransfer(requestId)
+            ccipRepository.deletePendingRouterAllowance(requestId)
+            ccipRepository.deletePendingTransaction(requestId)
+            ccipRepository.deleteAllRouterAllowance()
         }
     }
 

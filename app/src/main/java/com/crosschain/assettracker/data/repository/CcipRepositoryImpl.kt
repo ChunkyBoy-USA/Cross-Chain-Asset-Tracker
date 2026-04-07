@@ -72,6 +72,10 @@ class CcipRepositoryImpl @Inject constructor(
     val ccipApiService: CcipApiService,
 ) : CcipRepository {
 
+    init {
+        initSignClientDelegate()
+    }
+
     fun initSignClientDelegate() {
         // TODO: Need to refactor this callback
         AppKit.setDelegate(object : AppKit.ModalDelegate {
@@ -208,10 +212,6 @@ class CcipRepositoryImpl @Inject constructor(
 
     override suspend fun deletePendingTransaction(requestId: String) {
         pendingTransactionDao.deletePendingTransactionEntity(requestId)
-    }
-
-    override fun trackTransfer(): Flow<CcipTransfer> = flow {
-
     }
 
     override suspend fun approveRouterToSpend(
@@ -529,34 +529,13 @@ class CcipRepositoryImpl @Inject constructor(
         ccipSentRequestDao.insertCcipTransferTxHash(txHash, requestId)
     }
 
-//    override fun monitorCcipStatus(accountAddress: String, messageId: String, destinationChain: Chain, sourceChain: Chain): Flow<String?> = flow {
-//
-//
-//
-//        val executionState = service.sendEthCall<String>(
-//            rpcUrl = destinationChain.rpcUrl,
-//            fromAddress = accountAddress,
-//            toAddress = targetOffRampAddress?: "",
-//            methodName = GET_EXECUTION_STATE_FUNCTION,
-//            inputParameters = listOf(Uint64(sourceChain.ccipChainSelector), Uint64(messageId.toLong())),
-//            outputParameters = listOf(object : TypeReference<Utf8String>() {})
-//        )
-//
-//
-//
-//
-//        val function = Function(
-//            RouterClientConstants.IS_MESSAGE_EXECUTED_FUNCTION,
-//            listOf(Bytes32(Numeric.hexStringToByteArray(messageId))),
-//            listOf(object : TypeReference<Bool>() {})
-//        )
-//        val encodedFunctionData = FunctionEncoder.encode(function)
-//
-//        service.observeEthBlock(destinationChain.rpcUrl).collect {
-//            service.sendEthCall<Bool>(destinationChain.rpcUrl, )
-//        }
-//
-//    }
+    override suspend fun deleteAllRouterAllowance() {
+        routerAllowanceDao.deleteAllRouterAllowance()
+    }
+
+    override suspend fun deleteCcipTransfer(requestId: String) {
+        ccipSentRequestDao.deleteCcipSentRequest(requestId)
+    }
 
     companion object {
         const val TAG = "CcipRepositoryImpl"

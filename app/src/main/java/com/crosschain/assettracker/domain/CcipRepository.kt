@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import java.math.BigInteger
 
 interface CcipRepository {
-    fun trackTransfer(): Flow<CcipTransfer>
 
     fun sendRebaseToken(
         accountAddress: String,
@@ -80,5 +79,8 @@ interface CcipRepository {
         amountToSend: BigInteger
     ): BigInteger
 
-//    fun monitorCcipStatus(messageId: String, destinationChain: Chain, sourceChain: Chain): Flow<String?>
+    suspend fun deleteAllRouterAllowance()
+
+    suspend fun deleteCcipTransfer(requestId: String)
+
 }

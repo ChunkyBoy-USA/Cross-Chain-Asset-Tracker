@@ -79,11 +79,7 @@ class AssetTrackerApp : Application() {
             )
         )
 
-        Timber.tag(TAG).d("initialize")
         AppKit.setChains(chains)
-        Timber.tag(TAG).d("setChains")
-        ccipRepository.initSignClientDelegate()
-        Timber.tag(TAG).d("initSignClientDelegate")
     }
 
     companion object {

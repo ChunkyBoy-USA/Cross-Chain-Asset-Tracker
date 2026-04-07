@@ -7,13 +7,18 @@ import com.crosschain.assettracker.data.network.BlockchainService
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.RebaseTokenRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Address
 import org.web3j.abi.datatypes.Utf8String
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.abi.datatypes.generated.Uint8
+import timber.log.Timber
 import java.math.BigInteger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,26 +29,9 @@ class RebaseTokenRepositoryImpl @Inject constructor(
     val rebaseTokenMetaDataDao: RebaseTokenMetaDataDao
 ) : RebaseTokenRepository {
     override fun getTokenBalance(chain: Chain, address: String): Flow<BalanceInfo> = flow {
+        Timber.tag(TAG).d("getTokenBalance, chain = ${chain.chainId}")
         val localRecord =
             rebaseTokenMetaDataDao.getMetadata(chain.chainId, chain.rebaseTokenAddress)
-
-        val balance = service.sendEthCall<BigInteger>(
-            chain.rpcUrl,
-            address,
-            chain.rebaseTokenAddress,
-            RebaseTokenConstants.GET_BALANCE_FUNCTION,
-            listOf(Address(address)),
-            listOf(object : TypeReference<Uint256>() {})
-        )
-
-        val currentInterestRate = service.sendEthCall<BigInteger>(
-            chain.rpcUrl,
-            address,
-            chain.rebaseTokenAddress,
-            RebaseTokenConstants.GET_USER_INTEREST_RATE_FUNCTION,
-            listOf(Address(address)),
-            listOf(object : TypeReference<Uint256>() {})
-        )
 
         val symbol = localRecord?.symbol
             ?: service.sendEthCall<String>(
@@ -52,7 +40,8 @@ class RebaseTokenRepositoryImpl @Inject constructor(
                 chain.rebaseTokenAddress,
                 RebaseTokenConstants.GET_SYMBOL_FUNCTION,
                 listOf(),
-                listOf(object : TypeReference<Utf8String>() {}))
+                listOf(object : TypeReference<Utf8String>() {})
+            )
 
         val decimals = localRecord?.decimals
             ?: service.sendEthCall<BigInteger>(
@@ -86,17 +75,41 @@ class RebaseTokenRepositoryImpl @Inject constructor(
             )
         }
 
-        val bigDecimalBalance = balance.toBigDecimal().movePointLeft(decimals)
-        val bigDecimalInterestRate = currentInterestRate.toBigDecimal().movePointLeft(decimals)
-
-        emit(
-            BalanceInfo(
-                amount = bigDecimalBalance.toPlainString(),
-                tokenSymbol = symbol,
-                currentInterestRate = bigDecimalInterestRate.toPlainString(),
-                baseInterestRate = baseInterestRate,
-                chain = chain
+        service.observeEthBlock(chain.rpcUrl).collect {
+            val balance = service.sendEthCall<BigInteger>(
+                chain.rpcUrl,
+                address,
+                chain.rebaseTokenAddress,
+                RebaseTokenConstants.GET_BALANCE_FUNCTION,
+                listOf(Address(address)),
+                listOf(object : TypeReference<Uint256>() {})
             )
-        )
+
+            val currentInterestRate = service.sendEthCall<BigInteger>(
+                chain.rpcUrl,
+                address,
+                chain.rebaseTokenAddress,
+                RebaseTokenConstants.GET_USER_INTEREST_RATE_FUNCTION,
+                listOf(Address(address)),
+                listOf(object : TypeReference<Uint256>() {})
+            )
+
+            val bigDecimalBalance = balance.toBigDecimal().movePointLeft(decimals)
+            val bigDecimalInterestRate = currentInterestRate.toBigDecimal().movePointLeft(decimals)
+
+            emit(
+                BalanceInfo(
+                    amount = bigDecimalBalance.toPlainString(),
+                    tokenSymbol = symbol,
+                    currentInterestRate = bigDecimalInterestRate.toPlainString(),
+                    baseInterestRate = baseInterestRate,
+                    chain = chain
+                )
+            )
+        }
+    }.flowOn(Dispatchers.IO)
+
+    companion object {
+        const val TAG = "RebaseTokenRepositoryImpl"
     }
 }

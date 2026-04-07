@@ -5,7 +5,7 @@ import java.math.BigInteger
 
 sealed class MainIntent {
     data class LoadBalance(val chain: Chain) : MainIntent()
-    data class TrackTransfer(val messageId: String) : MainIntent()
+    data class DeleteTransfer(val requestId: String) : MainIntent()
     data class TransferTokens(val amount: BigInteger, val sourceChain: Chain, val destinationChain: Chain) : MainIntent()
 
     data object LoadAccountFromWallet : MainIntent()

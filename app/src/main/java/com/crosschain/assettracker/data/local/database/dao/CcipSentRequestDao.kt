@@ -25,6 +25,9 @@ interface CcipSentRequestDao {
     @Query("DELETE FROM ccip_sent_request")
     suspend fun clearAllCcipSentRequests()
 
+    @Query("DELETE FROM ccip_sent_request WHERE requestId = :requestId")
+    suspend fun deleteCcipSentRequest(requestId: String)
+
     @Query("UPDATE ccip_sent_request SET ccipMessageId = :ccipMessageId, status = :newStatus, sequenceNumber = :sequenceNumber WHERE txHash = :txHash")
     suspend fun insertCcipSentRequestMessageIdAndSequenceNumber(sequenceNumber: String?, ccipMessageId: String?, txHash: String, newStatus: TransferStatus)
 

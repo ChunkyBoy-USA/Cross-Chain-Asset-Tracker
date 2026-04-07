@@ -6,12 +6,18 @@ import com.reown.appkit.client.models.request.Request
 import com.reown.appkit.client.models.request.SentRequestResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.withContext
@@ -35,6 +41,7 @@ import org.web3j.tx.response.PollingTransactionReceiptProcessor
 import org.web3j.utils.Numeric
 import timber.log.Timber
 import java.math.BigInteger
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -69,7 +76,6 @@ class BlockchainService @Inject constructor() {
                 throw Exception(response.error.message)
             }
             val results = FunctionReturnDecoder.decode(response.value, function.outputParameters)
-            Timber.tag(TAG).d("sendEthCall results: $results")
             if (results.isNotEmpty()) {
                 val value = results[0].value
                 if (value is T) {
@@ -139,16 +145,21 @@ class BlockchainService @Inject constructor() {
         return state == 2
     }
 
+    @OptIn(FlowPreview::class)
     fun observeEthBlock(
-        rpcUrl: String
-    ): Flow<EthBlock> = flow<EthBlock> {
-        val wsService = WebSocketService(rpcUrl, true)
+        rpcUrl: String,
+        period: Long = 10000
+    ): Flow<EthBlock> {
+        val wsService = WebSocketService(rpcUrl.replace("https", "wss"), true)
         wsService.connect()
         val web3j = Web3j.build(wsService)
-        web3j.blockFlowable(false).asFlow().collectLatest {
-            emit(it)
-        }
-    }.flowOn(Dispatchers.IO)
+        return web3j.blockFlowable(false)
+            .asFlow()
+            .sample(period)
+            .onStart {
+                emit(EthBlock())
+            }.flowOn(Dispatchers.IO)
+    }
 
     fun sendEthTransaction(
         coroutineScope: CoroutineScope,
