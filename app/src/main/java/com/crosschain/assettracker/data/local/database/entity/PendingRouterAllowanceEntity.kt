@@ -11,7 +11,9 @@ data class PendingRouterAllowanceEntity (
     val walletAddress: String,
     val tokenAddress: String,
     val chainId: String,
+    val rpcUrl: String,
     val pendingAllowance: String,
     val requestId: String,
+    val txHash: String?,
     val isApproved: Boolean
 )

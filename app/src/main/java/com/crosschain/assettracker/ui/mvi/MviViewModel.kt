@@ -2,13 +2,16 @@ package com.crosschain.assettracker.ui.mvi
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.crosschain.assettracker.ui.mvi.main.MainUiState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 abstract class MviViewModel<State, Intent, SideEffect> : ViewModel() {
 
@@ -42,8 +45,8 @@ abstract class MviViewModel<State, Intent, SideEffect> : ViewModel() {
     }
 
     protected fun setState(reduce: State.() -> State) {
-        val newState = _uiState.value.reduce()
-        _uiState.value = newState
+//        Timber.tag("MviViewModel").d("state.reduce = ${(_uiState.value.reduce() as MainUiState).ccipTransfer?.status}")
+        _uiState.update { _uiState.value.reduce() }
     }
 
     protected fun setEffect(effect: SideEffect) {

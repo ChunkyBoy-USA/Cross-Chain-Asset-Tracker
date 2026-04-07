@@ -12,9 +12,7 @@ enum class Chain(
     val rebaseTokenAddress: String,
     val linkTokenAddress: String,
     val ccipRouterAddress: String,
-    val ccipRegistryModuleOwnerCustom: String,
-    val ccipTokenAdminRegistry: String,
-    val ccipRnmProxyAddress: String,
+    val ccipOffRampAddress: String,
     val ccipChainSelector: BigInteger
 ) {
     ETHEREUM(
@@ -25,9 +23,7 @@ enum class Chain(
         EthereumSepoliaConstants.REBASE_TOKEN_ADDRESS,
         EthereumSepoliaConstants.LINK_TOKEN_ADDRESS,
         EthereumSepoliaConstants.CCIP_ROUTER_ADDRESS,
-        EthereumSepoliaConstants.CCIP_REGISTRY_MODULE_OWNER_CUSTOM,
-        EthereumSepoliaConstants.CCIP_TOKEN_ADMIN_REGISTRY,
-        EthereumSepoliaConstants.CCIP_RNM_PROXY_ADDRESS,
+        EthereumSepoliaConstants.CCIP_OFF_RAMP_ADDRESS_FOR_ARB_SEPOLIA,
         BigInteger(EthereumSepoliaConstants.CCIP_CHAIN_SELECTOR)
     ),
     ARBITRUM(
@@ -38,9 +34,7 @@ enum class Chain(
         ArbitrumSepoliaConstants.REBASE_TOKEN_ADDRESS,
         ArbitrumSepoliaConstants.LINK_TOKEN_ADDRESS,
         ArbitrumSepoliaConstants.CCIP_ROUTER_ADDRESS,
-        ArbitrumSepoliaConstants.CCIP_REGISTRY_MODULE_OWNER_CUSTOM,
-        ArbitrumSepoliaConstants.CCIP_TOKEN_ADMIN_REGISTRY,
-        ArbitrumSepoliaConstants.CCIP_RNM_PROXY_ADDRESS,
+        ArbitrumSepoliaConstants.CCIP_OFF_RAMP_ADDRESS_FOR_ETH_SEPOLIA,
         BigInteger(ArbitrumSepoliaConstants.CCIP_CHAIN_SELECTOR)
     )
 }

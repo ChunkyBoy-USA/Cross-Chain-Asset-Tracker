@@ -1,6 +1,5 @@
 package com.crosschain.assettracker.data.local.database.dao
 
-import android.R
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -20,12 +19,15 @@ interface CcipSentRequestDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCcipSentRequest(ccipSentRequest: CcipSentRequestEntity)
 
-    @Query("UPDATE ccip_sent_request SET txHash = :txHash WHERE sessionTopic = :sessionTopic")
-    suspend fun updateCcipSentRequestTxHash(txHash: String, sessionTopic: String)
+    @Query("UPDATE ccip_sent_request SET txHash = :txHash WHERE requestId = :requestId")
+    suspend fun insertCcipTransferTxHash(txHash: String, requestId: String)
 
     @Query("DELETE FROM ccip_sent_request")
     suspend fun clearAllCcipSentRequests()
 
-    @Query("UPDATE ccip_sent_request SET ccipMessageId = :ccipMessageId, status = :newStatus WHERE txHash = :txHash")
-    suspend fun insertCcipSentRequestMessageId(ccipMessageId: String?, txHash: String, newStatus: TransferStatus)
+    @Query("UPDATE ccip_sent_request SET ccipMessageId = :ccipMessageId, status = :newStatus, sequenceNumber = :sequenceNumber WHERE txHash = :txHash")
+    suspend fun insertCcipSentRequestMessageIdAndSequenceNumber(sequenceNumber: String?, ccipMessageId: String?, txHash: String, newStatus: TransferStatus)
+
+    @Query("UPDATE ccip_sent_request SET offRampAddress = :offRampAddress WHERE txHash = :txHash")
+    suspend fun insertCcipOffRampAddress(txHash: String, offRampAddress: String?)
 }

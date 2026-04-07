@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.model.TransferStatus
@@ -50,12 +51,13 @@ import com.crosschain.assettracker.ui.mvi.main.MainUiState
 import com.crosschain.assettracker.ui.theme.LocalColorScheme
 import com.reown.appkit.ui.components.internal.AppKitComponent
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.math.BigInteger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -108,13 +110,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 val ethRebaseTokenBalanceInfo = state.ethRebaseTokenBalanceInfo
                 val arbRebaseTokenBalanceInfo = state.arbRebaseTokenBalanceInfo
 
-                LaunchedEffect(ethRebaseTokenBalanceInfo, arbRebaseTokenBalanceInfo) {
-                    if (ethRebaseTokenBalanceInfo == null) {
-                        viewModel.setIntent(MainIntent.LoadBalance(Chain.ETHEREUM))
-                    }
-                    if (arbRebaseTokenBalanceInfo == null) {
-                        viewModel.setIntent(MainIntent.LoadBalance(Chain.ARBITRUM))
-                    }
+                LaunchedEffect(Unit) {
+                    viewModel.setIntent(MainIntent.LoadBalance(Chain.ETHEREUM))
+                    viewModel.setIntent(MainIntent.LoadBalance(Chain.ARBITRUM))
                 }
 
                 Column(
@@ -126,6 +124,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         HorizontalDivider(modifier = Modifier.height(24.dp), color = Color.Transparent)
                         BalanceCard(arbRebaseTokenBalanceInfo)
                         HorizontalDivider(modifier = Modifier.height(24.dp), color = Color.Transparent)
+                        Timber.tag("MainScreen").d("state = $state")
                         CcipTrackingCard(state) { amountToSend ->
                             viewModel.setIntent(MainIntent.TransferTokens(BigInteger(amountToSend), Chain.ETHEREUM, Chain.ARBITRUM))
                         }
@@ -207,7 +206,7 @@ fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
                     Text(modifier = Modifier.weight(1f), text = "Status: ${state.ccipTransfer.status}")
-                    if (state.ccipTransfer.status != TransferStatus.SUCCESS || state.ccipTransfer.status != TransferStatus.FAILED) {
+                    if (state.ccipTransfer.status != TransferStatus.SUCCESS && state.ccipTransfer.status != TransferStatus.FAILED) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Bottom).size(20.dp), strokeWidth = 3.dp)
                     }
                 }

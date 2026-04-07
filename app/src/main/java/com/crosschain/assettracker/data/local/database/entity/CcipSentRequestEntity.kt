@@ -14,9 +14,11 @@ data class CcipSentRequestEntity(
     val params: String,
     val chainId: String,
     val status: TransferStatus,
+    val sourceChainName: String,
+    val destinationChainName: String,
+    val offRampAddress: String,
     val txHash: String?,
     val ccipMessageId: String?,
-    val sourceChain: String,
-    val destinationChain: String
+    val sequenceNumber: String?,
 )
 

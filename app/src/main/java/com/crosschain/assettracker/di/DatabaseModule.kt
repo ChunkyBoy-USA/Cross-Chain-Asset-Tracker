@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.crosschain.assettracker.data.local.database.AppDatabase
 import com.crosschain.assettracker.data.local.database.dao.CcipSentRequestDao
+import com.crosschain.assettracker.data.local.database.dao.PendingTransactionDao
 import com.crosschain.assettracker.data.local.database.dao.RebaseTokenMetaDataDao
 import com.crosschain.assettracker.data.local.database.dao.RouterAllowanceDao
 import dagger.Module
@@ -29,9 +30,10 @@ object DatabaseModule {
     @Provides
     fun provideRebaseTokenMetadataDao(db: AppDatabase): RebaseTokenMetaDataDao =
         db.rebaseTokenMetaDataDao()
-
     @Provides
     fun provideCcipSentRequestDao(db: AppDatabase): CcipSentRequestDao = db.ccipSentRequestDao()
     @Provides
     fun provideRouterAllowanceDao(db: AppDatabase): RouterAllowanceDao = db.routerAllowanceDao()
+    @Provides
+    fun providePendingTransactionDao(db: AppDatabase): PendingTransactionDao = db.pendingTransactionDao()
 }

@@ -4,21 +4,29 @@ import com.crosschain.assettracker.constants.ERC20Constants.APPROVE_FUNCTION
 import com.crosschain.assettracker.constants.RouterClientConstants
 import com.crosschain.assettracker.constants.RouterClientConstants.GENERIC_EXTRA_ARGS_V2_TAG
 import com.crosschain.assettracker.constants.RouterClientConstants.GET_FEE_FUNCTION
-import com.crosschain.assettracker.constants.RouterClientConstants.GET_OFF_RAMPS_FUNCTION
 import com.crosschain.assettracker.constants.WalletConnectConstants.METHOD_ETH_SEND_TRANSACTION
 import com.crosschain.assettracker.data.local.database.dao.CcipSentRequestDao
+import com.crosschain.assettracker.data.local.database.dao.PendingTransactionDao
 import com.crosschain.assettracker.data.local.database.dao.RouterAllowanceDao
 import com.crosschain.assettracker.data.local.database.entity.PendingRouterAllowanceEntity
-import com.crosschain.assettracker.data.model.OffRamp
+import com.crosschain.assettracker.data.local.database.entity.PendingTransactionEntity
+import com.crosschain.assettracker.data.local.database.entity.RouterAllowanceEntity
+import com.crosschain.assettracker.data.model.ExecutionState
 import com.crosschain.assettracker.data.model.TokenAmount
 import com.crosschain.assettracker.data.network.BlockchainService
+import com.crosschain.assettracker.data.network.CcipApiService
 import com.crosschain.assettracker.domain.model.CcipTransfer
 import com.crosschain.assettracker.domain.CcipRepository
 import com.crosschain.assettracker.domain.model.Chain
+import com.crosschain.assettracker.domain.model.PendingRouterAllowance
+import com.crosschain.assettracker.domain.model.PendingTransaction
+import com.crosschain.assettracker.domain.model.PendingTransactionType
 import com.crosschain.assettracker.domain.model.RouterAllowance
 import com.crosschain.assettracker.domain.model.TransferStatus
 import com.crosschain.assettracker.domain.model.toCcipSentRequestEntity
 import com.crosschain.assettracker.domain.model.toCcipTransfer
+import com.crosschain.assettracker.domain.model.toPendingRouterAllowance
+import com.crosschain.assettracker.domain.model.toPendingTransaction
 import com.crosschain.assettracker.domain.model.toRouterAllowance
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
@@ -27,6 +35,7 @@ import com.reown.appkit.client.models.request.SentRequestResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
@@ -55,10 +64,12 @@ import javax.inject.Singleton
 
 @Singleton
 class CcipRepositoryImpl @Inject constructor(
-    val service: BlockchainService,
+    val blockChainService: BlockchainService,
     val ccipSentRequestDao: CcipSentRequestDao,
     val routerAllowanceDao: RouterAllowanceDao,
-    val coroutineScope: CoroutineScope
+    val pendingTransactionDao: PendingTransactionDao,
+    val coroutineScope: CoroutineScope,
+    val ccipApiService: CcipApiService,
 ) : CcipRepository {
 
     fun initSignClientDelegate() {
@@ -105,10 +116,7 @@ class CcipRepositoryImpl @Inject constructor(
                 when (val jsonRpcResult = response.result) {
                     is Modal.Model.JsonRpcResponse.JsonRpcResult -> {
                         coroutineScope.launch(Dispatchers.IO) {
-                            ccipSentRequestDao.updateCcipSentRequestTxHash(
-                                jsonRpcResult.result,
-                                response.topic
-                            )
+                            pendingTransactionDao.insertPendingTransactionTxHash(jsonRpcResult.result, jsonRpcResult.id.toString())
                         }
                     }
 
@@ -138,7 +146,7 @@ class CcipRepositoryImpl @Inject constructor(
         })
     }
 
-    override fun getPendingTransfer(): Flow<CcipTransfer?> =
+    override fun getCcipTransfer(): Flow<CcipTransfer?> =
         merge(ccipSentRequestDao.getCcipSentRequests().map {
             if (it.isEmpty()) {
                 null
@@ -152,13 +160,18 @@ class CcipRepositoryImpl @Inject constructor(
         tokenAddress: String,
         walletAddress: String,
         chainId: String
-    ): RouterAllowance? =
-        routerAllowanceDao.getRouterAllowance(
+    ): RouterAllowance? {
+        val routerAllowance = routerAllowanceDao.getRouterAllowance(
             routerAddress,
             tokenAddress,
             walletAddress,
             chainId
         )?.toRouterAllowance()
+
+        Timber.tag(TAG).d("routerAllowance: $routerAllowance")
+        return routerAllowance
+    }
+
 
     override fun getRouterAllowanceFlow(
         routerAddress: String,
@@ -175,59 +188,45 @@ class CcipRepositoryImpl @Inject constructor(
             it?.toRouterAllowance()
         }
 
+    override fun getPendingRouterAllowanceFlow(): Flow<PendingRouterAllowance?> =
+        routerAllowanceDao.getPendingRouterAllowance().map {
+             it?.toPendingRouterAllowance()
+        }
+
+    override fun getPendingTransaction(): Flow<PendingTransaction?> =
+        pendingTransactionDao.getPendingTransactionFlow().map {
+            it?.toPendingTransaction()
+        }
+
+    override suspend fun insertPendingRouterAllowanceTxHash(requestId: String, txHash: String) {
+        routerAllowanceDao.insertPendingRouterAllowanceTxHash(txHash, requestId)
+    }
+
     override suspend fun deletePendingRouterAllowance(requestId: String) {
         routerAllowanceDao.deletePendingRouterAllowance(requestId)
     }
 
+    override suspend fun deletePendingTransaction(requestId: String) {
+        pendingTransactionDao.deletePendingTransactionEntity(requestId)
+    }
 
     override fun trackTransfer(): Flow<CcipTransfer> = flow {
 
     }
 
-    override suspend fun approveCcipFee(
-        sourceChainId: String,
+    override suspend fun approveRouterToSpend(
+        sourceChain: Chain,
         walletAddress: String,
         routerAddress: String,
-        erc20Address: String,
-        ccipFee: BigInteger
+        tokenAddress: String,
+        amountToSpend: BigInteger
     ): Long? {
-        val requestId = service.sendEthTransaction(
+        val requestId = blockChainService.sendEthTransaction(
             coroutineScope,
             walletAddress,
-            routerAddress,
+            tokenAddress,
             APPROVE_FUNCTION,
-            listOf(Address(routerAddress), Uint256(ccipFee)),
-            listOf(object : TypeReference<Bool>() {})
-        ).first()
-        if (requestId != null) {
-            routerAllowanceDao.insertPendingRouterAllowance(
-                PendingRouterAllowanceEntity(
-                    routerAddress,
-                    erc20Address,
-                    walletAddress,
-                    sourceChainId,
-                    ccipFee.toString(),
-                    requestId.toString(),
-                    false
-                )
-            )
-        }
-        return requestId
-    }
-
-    override suspend fun approveTokenToSend(
-        sourceChainId: String,
-        walletAddress: String,
-        routerAddress: String,
-        erc20Address: String,
-        amountToSend: BigInteger
-    ): Long? {
-        val requestId = service.sendEthTransaction(
-            coroutineScope,
-            walletAddress,
-            routerAddress,
-            APPROVE_FUNCTION,
-            listOf(Address(routerAddress), Uint256(amountToSend)),
+            listOf(Address(routerAddress), Uint256(amountToSpend)),
             listOf(object : TypeReference<Bool>() {})
         ).first()
 
@@ -235,14 +234,24 @@ class CcipRepositoryImpl @Inject constructor(
             routerAllowanceDao.insertPendingRouterAllowance(
                 PendingRouterAllowanceEntity(
                     routerAddress,
-                    erc20Address,
                     walletAddress,
-                    sourceChainId,
-                    amountToSend.toString(),
+                    tokenAddress,
+                    sourceChain.chainId,
+                    sourceChain.rpcUrl,
+                    amountToSpend.toString(),
                     requestId.toString(),
+                    null,
                     false
                 )
             )
+            pendingTransactionDao.insertPendingTransactionEntity(
+                PendingTransactionEntity(
+                    requestId.toString(),
+                    PendingTransactionType.ROUTER_ALLOWANCE_REQUEST,
+                    null
+                )
+            )
+            Timber.tag(TAG).d("approveTokenToSend() requestId = $requestId, tokenAddress = $tokenAddress, amountToSpend = $amountToSpend")
         }
         return requestId
     }
@@ -274,7 +283,7 @@ class CcipRepositoryImpl @Inject constructor(
             extraArgs
         )
 
-        val ccipFee = service.sendEthCall<BigInteger>(
+        val ccipFee = blockChainService.sendEthCall<BigInteger>(
             rpcUrl = sourceChain.rpcUrl,
             fromAddress = accountAddress,
             toAddress = sourceChain.ccipRouterAddress,
@@ -378,8 +387,15 @@ class CcipRepositoryImpl @Inject constructor(
                             ccipMessageId = null,
                             sourceChainName = sourceChain.name,
                             destinationChainName = destinationChain.name,
-                            offRampAddress = null
+                            offRampAddress = destinationChain.ccipOffRampAddress
                         ).toCcipSentRequestEntity()
+                    )
+                    pendingTransactionDao.insertPendingTransactionEntity(
+                        PendingTransactionEntity(
+                            sentRequestResult.requestId.toString(),
+                            PendingTransactionType.CCIP_REQUEST,
+                            null
+                        )
                     )
                     trySend(true)
                     close()
@@ -402,44 +418,115 @@ class CcipRepositoryImpl @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
-    override suspend fun getCcipMessageId(txHash: String, sourceChain: Chain): String? {
-        val receipt = service.getEthTransactionReceipt(sourceChain.rpcUrl, txHash)
+    override suspend fun retrieveCcipMessageIdAndSequenceNumber(txHash: String, sourceChain: Chain): Boolean {
+        val receipt = blockChainService.waitForEthTransactionReceipt(sourceChain.rpcUrl, txHash)
         if (receipt == null) {
             Timber.tag(TAG).d("getCcipMessageId() receipt is null")
-            return null
+            return false
         } else {
+            Timber.tag(TAG).d("receipt.logs =  ${receipt.logs}")
             val ccipLog = receipt.logs.find { it.topics.contains(CCIP_SEND_REQUESTED_TOPIC) }
+            val data = ccipLog?.data
+            if (data == null) {
+                Timber.tag(TAG).d("getCcipMessageId() receipt logs data is null")
+                return false
+            }
             val messageId =
-                "0x" + ccipLog?.data?.substring(834, 834 + 64) // TODO: Hard code for now
+                "0x" + data.substring(834, 834 + 64) // TODO: Hard code for now
             Timber.tag(TAG).d("getCcipMessageId() messageId: $messageId")
-            ccipSentRequestDao.insertCcipSentRequestMessageId(
+            val messageSequenceNumber = data.substring(data.length - 64).trimStart('0') // TODO: Hard code for now
+            Timber.tag(TAG).d("getCcipMessageId() messageSequenceNumber: $messageSequenceNumber")
+            ccipSentRequestDao.insertCcipSentRequestMessageIdAndSequenceNumber(
+                messageSequenceNumber,
                 messageId,
                 txHash,
                 TransferStatus.WAITING_FOR_FINALITY
             )
-            return messageId
+            return true
         }
     }
 
-    override suspend fun getOffRampAddress(
-        txHash: String,
-        sourceChain: Chain,
-        destinationChain: Chain
-    ): String? {
-        val offRamps = service.sendEthCall<List<OffRamp>>(
-            rpcUrl = destinationChain.rpcUrl,
-            fromAddress = "",
-            toAddress = destinationChain.ccipRouterAddress,
-            methodName = GET_OFF_RAMPS_FUNCTION,
-            inputParameters = emptyList(),
-            outputParameters = listOf(object : TypeReference<DynamicArray<OffRamp>>() {})
+    override suspend fun waitForPendingRouterAllowanceApproved(txHash: String, rpcUrl: String): Boolean {
+        val isStatusOK = blockChainService.waitForEthTransactionReceipt(rpcUrl, txHash)?.isStatusOK
+        if (isStatusOK == null || !isStatusOK) {
+            Timber.tag(TAG).d("waitForPendingRouterAllowanceApproved() fail, txHash: $txHash, rpcUrl: $rpcUrl")
+            return false
+        } else {
+            Timber.tag(TAG).d("waitForPendingRouterAllowanceApproved() succeed, txHash: $txHash, rpcUrl: $rpcUrl")
+            return true
+        }
+    }
+
+    override suspend fun routerAllowanceApproved(
+        routerAddress: String,
+        tokenAddress: String,
+        walletAddress: String,
+        chainId: String,
+        allowanceApproved: String
+    ) {
+        val existing = routerAllowanceDao.getRouterAllowance(
+            routerAddress,
+            tokenAddress,
+            walletAddress,
+            chainId
         )
-        val targetOffRampAddress = offRamps.find {
-            it.sourceChainSelector.value == sourceChain.ccipChainSelector
-        }?.offRamp?.value
-        Timber.tag(TAG).d("getOffRampAddress() targetOffRampAddress: $targetOffRampAddress")
-        ccipSentRequestDao.insertCcipOffRampAddress(txHash, targetOffRampAddress)
-        return targetOffRampAddress
+        if (existing == null) {
+            routerAllowanceDao.insertRouterAllowance(
+                RouterAllowanceEntity(
+                    routerAddress,
+                    walletAddress,
+                    tokenAddress,
+                    chainId,
+                    allowanceApproved
+                )
+            )
+        } else {
+            routerAllowanceDao.routerAllowanceApproved(
+                routerAddress,
+                tokenAddress,
+                walletAddress,
+                chainId,
+                allowanceApproved
+            )
+        }
+    }
+
+    override suspend fun waitForCcipTransfer(
+        sourceChain: Chain,
+        destinationChain: Chain,
+        messageId: String,
+        maxRetries: Int
+    ): ExecutionState {
+        repeat(maxRetries) { attempt ->
+            // TODO: Use web3j way to monitor CCIP transfer state
+            try {
+                val response = ccipApiService.getCcipTransferDetails(messageId)
+                if (response.isSuccessful) {
+                    val statusString = response.body()?.status
+                    if (statusString == ExecutionState.SUCCESS) {
+                        Timber.tag(TAG).d("getCcipTransferDetails() status = SUCCESS")
+                        return ExecutionState.SUCCESS
+                    } else if (statusString == ExecutionState.FAILURE) {
+                        Timber.tag(TAG).d("getCcipTransferDetails() status = FAILURE")
+                        return ExecutionState.FAILURE
+                    } else {
+                        Timber.tag(TAG).d("waitForCcipTransfer() waiting...")
+                    }
+                } else {
+                    Timber.tag(TAG).d("getCcipTransferDetails() failed, response: $response")
+                    return ExecutionState.FAILURE
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e)
+                Timber.tag(TAG).d("waitForCcipTransfer() Attempt $attempt: Message not yet committed or reverted.")
+            }
+            delay(10_000)
+        }
+        return ExecutionState.FAILURE
+    }
+
+    override suspend fun insertCcipTransferTxHash(requestId: String, txHash: String) {
+        ccipSentRequestDao.insertCcipTransferTxHash(txHash, requestId)
     }
 
 //    override fun monitorCcipStatus(accountAddress: String, messageId: String, destinationChain: Chain, sourceChain: Chain): Flow<String?> = flow {

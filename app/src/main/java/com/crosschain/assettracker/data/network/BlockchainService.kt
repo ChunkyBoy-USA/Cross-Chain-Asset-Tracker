@@ -22,23 +22,27 @@ import org.web3j.abi.datatypes.Function
 import org.web3j.protocol.Web3j
 import org.web3j.abi.datatypes.Type
 import org.web3j.protocol.core.DefaultBlockParameterName
+import org.web3j.protocol.core.DefaultBlockParameterNumber
+import org.web3j.protocol.core.methods.request.EthFilter
 import org.web3j.protocol.core.methods.request.Transaction
 import org.web3j.protocol.core.methods.response.EthBlock
+import org.web3j.protocol.core.methods.response.Log
 import org.web3j.protocol.core.methods.response.TransactionReceipt
+import org.web3j.protocol.exceptions.TransactionException
 import org.web3j.protocol.http.HttpService
 import org.web3j.protocol.websocket.WebSocketService
+import org.web3j.tx.response.PollingTransactionReceiptProcessor
 import org.web3j.utils.Numeric
 import timber.log.Timber
 import java.math.BigInteger
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.jvm.optionals.getOrNull
 
 @Singleton
 class BlockchainService @Inject constructor() {
     suspend inline fun <reified T> sendEthCall(
         rpcUrl: String,
-        fromAddress: String,
+        fromAddress: String?,
         toAddress: String,
         methodName: String,
         inputParameters: List<Type<*>>,
@@ -81,16 +85,58 @@ class BlockchainService @Inject constructor() {
         }
     }
 
-    suspend fun getEthTransactionReceipt(rpcUrl: String, txHash: String): TransactionReceipt? = withContext(Dispatchers.IO) {
+    suspend fun waitForEthTransactionReceipt(rpcUrl: String, txHash: String): TransactionReceipt? = withContext(Dispatchers.IO) {
         val web3j = Web3j.build(HttpService(rpcUrl))
-        val response = web3j.ethGetTransactionReceipt(txHash).send()
-        val receipt = response.transactionReceipt
-        if (receipt != null && receipt.isPresent) {
-            return@withContext receipt.getOrNull()
-        } else {
-            Timber.tag(TAG).d("No transaction receipt found for txHash: $txHash, rpcUrl: $rpcUrl")
+        val polling = PollingTransactionReceiptProcessor(web3j, 1000, 100)
+        try {
+            val receipt = polling.waitForTransactionReceipt(txHash)
+            return@withContext receipt
+        } catch (e: TransactionException) {
+            Timber.tag(TAG).e(e)
             return@withContext null
         }
+    }
+
+    fun filterTopicsForEvent(
+        rpcUrl: String,
+        address: String,
+        eventSignature: String,
+        vararg topics: String
+    ): Boolean {
+
+        val web3j = Web3j.build(HttpService(rpcUrl))
+        val latestBlock = web3j.ethBlockNumber().send().blockNumber
+
+        val startBlock = latestBlock.subtract(BigInteger.valueOf(10))
+
+        val filter = EthFilter(
+            DefaultBlockParameterNumber(startBlock),
+            DefaultBlockParameterName.LATEST,
+            address
+        ).apply {
+            addSingleTopic(eventSignature)
+            topics.forEach {
+                addOptionalTopics(it)
+            }
+            addOptionalTopics(null)
+        }
+
+        val ethLog = web3j.ethGetLogs(filter).send()
+
+        if (ethLog.hasError()) {
+            Timber.tag(TAG).e("ethLog.hasError, ${ethLog.error}")
+            return false
+        }
+        val logs = ethLog.logs
+        if (logs.isNullOrEmpty()) {
+            Timber.tag(TAG).e("ethLog.logs is null or empty, logs = $logs")
+            return false
+        }
+        val data = (logs.first() as Log).data.removePrefix("0x")
+
+        val stateHex = data.substring(64, 128)
+        val state = Integer.parseInt(stateHex.trimStart('0').ifEmpty { "0" }, 16)
+        return state == 2
     }
 
     fun observeEthBlock(

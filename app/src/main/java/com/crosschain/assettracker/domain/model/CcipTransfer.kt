@@ -1,6 +1,7 @@
 package com.crosschain.assettracker.domain.model
 
 import com.crosschain.assettracker.data.local.database.entity.CcipSentRequestEntity
+import com.crosschain.assettracker.data.model.ExecutionState
 
 enum class TransferStatus {
     INITIATED,
@@ -15,12 +16,13 @@ data class CcipTransfer(
     val method: String,
     val params: String,
     val chainId: String,
-    val txHash: String? = null,
-    val ccipMessageId: String? = null,
-    val offRampAddress: String?  = null,
+    val offRampAddress: String,
     val status: TransferStatus,
     val sourceChainName: String,
     val destinationChainName: String,
+    val txHash: String? = null,
+    val ccipMessageId: String? = null,
+    val sequenceNumber: String? = null,
 )
 
 fun CcipSentRequestEntity.toCcipTransfer() = CcipTransfer(
@@ -31,6 +33,7 @@ fun CcipSentRequestEntity.toCcipTransfer() = CcipTransfer(
     chainId = chainId,
     txHash = txHash,
     ccipMessageId = ccipMessageId,
+    sequenceNumber = sequenceNumber,
     status = status,
     sourceChainName = sourceChainName,
     destinationChainName = destinationChainName,
@@ -45,6 +48,7 @@ fun CcipTransfer.toCcipSentRequestEntity() = CcipSentRequestEntity(
     chainId = chainId,
     txHash = txHash,
     ccipMessageId = ccipMessageId,
+    sequenceNumber = sequenceNumber,
     status = status,
     sourceChainName = sourceChainName,
     destinationChainName = destinationChainName,
@@ -57,3 +61,12 @@ fun CcipTransfer.statusToProgress(): Float = when (status) {
     TransferStatus.SUCCESS -> 1f
     TransferStatus.FAILED -> 1f
 }
+
+fun ExecutionState.toTransferStatus() =
+    when (this) {
+        ExecutionState.UNTOUCHED -> TransferStatus.INITIATED
+        ExecutionState.IN_PROGRESS -> TransferStatus.WAITING_FOR_FINALITY
+        ExecutionState.SUCCESS -> TransferStatus.SUCCESS
+        ExecutionState.FAILURE -> TransferStatus.FAILED
+    }
+

@@ -1,7 +1,10 @@
 package com.crosschain.assettracker.domain
 
+import com.crosschain.assettracker.data.model.ExecutionState
 import com.crosschain.assettracker.domain.model.CcipTransfer
 import com.crosschain.assettracker.domain.model.Chain
+import com.crosschain.assettracker.domain.model.PendingRouterAllowance
+import com.crosschain.assettracker.domain.model.PendingTransaction
 import com.crosschain.assettracker.domain.model.RouterAllowance
 import kotlinx.coroutines.flow.Flow
 import java.math.BigInteger
@@ -16,23 +19,15 @@ interface CcipRepository {
         amountToSend: BigInteger
     ): Flow<Boolean>
 
-    suspend fun approveCcipFee(
-        sourceChainId: String,
+    suspend fun approveRouterToSpend(
+        sourceChain: Chain,
         walletAddress: String,
         routerAddress: String,
-        erc20Address: String,
-        ccipFee: BigInteger
+        tokenAddress: String,
+        amountToSpend: BigInteger
     ): Long?
 
-    suspend fun approveTokenToSend(
-        sourceChainId: String,
-        walletAddress: String,
-        routerAddress: String,
-        erc20Address: String,
-        amountToSend: BigInteger
-    ): Long?
-
-    fun getPendingTransfer(): Flow<CcipTransfer?>
+    fun getCcipTransfer(): Flow<CcipTransfer?>
 
     suspend fun getRouterAllowance(
         routerAddress: String,
@@ -48,15 +43,35 @@ interface CcipRepository {
         chainId: String
     ): Flow<RouterAllowance?>
 
+    fun getPendingRouterAllowanceFlow(): Flow<PendingRouterAllowance?>
+
+    suspend fun insertPendingRouterAllowanceTxHash(requestId: String, txHash: String)
+    suspend fun insertCcipTransferTxHash(requestId: String, txHash: String)
+
+    fun getPendingTransaction(): Flow<PendingTransaction?>
+
+    suspend fun deletePendingTransaction(requestId: String)
+
+    suspend fun waitForPendingRouterAllowanceApproved(txHash: String, rpcUrl: String): Boolean
+
+    suspend fun routerAllowanceApproved(
+        routerAddress: String,
+        tokenAddress: String,
+        walletAddress: String,
+        chainId: String,
+        allowanceApproved: String
+    )
+
     suspend fun deletePendingRouterAllowance(requestId: String)
 
-    suspend fun getCcipMessageId(txHash: String, sourceChain: Chain): String?
+    suspend fun retrieveCcipMessageIdAndSequenceNumber(txHash: String, sourceChain: Chain): Boolean
 
-    suspend fun getOffRampAddress(
-        txHash: String,
+    suspend fun waitForCcipTransfer(
         sourceChain: Chain,
-        destinationChain: Chain
-    ): String?
+        destinationChain: Chain,
+        messageId: String,
+        maxRetries: Int = 60
+    ): ExecutionState
 
     suspend fun getCcipFee(
         accountAddress: String,

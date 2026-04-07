@@ -19,11 +19,20 @@ interface RouterAllowanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRouterAllowance(routerAllowance: RouterAllowanceEntity)
 
+    @Query("UPDATE router_allowance SET allowance = CAST(\n" +
+            "(CAST(COALESCE(allowance, '0') AS LONG) + CAST(COALESCE(:allowanceApproved, '0') AS LONG)) \n" +
+            "AS TEXT)\n WHERE routerAddress = :routerAddress AND walletAddress = :walletAddress \n" +
+            "AND tokenAddress = :tokenAddress AND chainId = :chainId")
+    suspend fun routerAllowanceApproved(routerAddress: String, tokenAddress: String, walletAddress: String, chainId: String, allowanceApproved: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPendingRouterAllowance(pendingRouterAllowance: PendingRouterAllowanceEntity)
 
-    @Query("SELECT * FROM pending_router_allowance WHERE requestId = :requestId LIMIT 1")
-    fun getPendingRouterAllowance(requestId: String): Flow<PendingRouterAllowanceEntity>
+    @Query("UPDATE pending_router_allowance SET txHash = :txHash WHERE requestId = :requestId")
+    suspend fun insertPendingRouterAllowanceTxHash(txHash: String, requestId: String)
+
+    @Query("SELECT * FROM pending_router_allowance")
+    fun getPendingRouterAllowance(): Flow<PendingRouterAllowanceEntity?>
 
     @Query("DELETE FROM pending_router_allowance WHERE requestId = :requestId")
     suspend fun deletePendingRouterAllowance(requestId: String)
