@@ -382,7 +382,7 @@ class CcipRepositoryImpl @Inject constructor(
                             method = sentRequestResult.method,
                             params = sentRequestResult.params,
                             chainId = sentRequestResult.chainId,
-                            status = TransferStatus.INITIATED,
+                            status = TransferStatus.SENT,
                             txHash = null,
                             ccipMessageId = null,
                             sourceChainName = sourceChain.name,
@@ -421,10 +421,8 @@ class CcipRepositoryImpl @Inject constructor(
     override suspend fun retrieveCcipMessageIdAndSequenceNumber(txHash: String, sourceChain: Chain): Boolean {
         val receipt = blockChainService.waitForEthTransactionReceipt(sourceChain.rpcUrl, txHash)
         if (receipt == null) {
-            Timber.tag(TAG).d("getCcipMessageId() receipt is null")
             return false
         } else {
-            Timber.tag(TAG).d("receipt.logs =  ${receipt.logs}")
             val ccipLog = receipt.logs.find { it.topics.contains(CCIP_SEND_REQUESTED_TOPIC) }
             val data = ccipLog?.data
             if (data == null) {
@@ -433,14 +431,12 @@ class CcipRepositoryImpl @Inject constructor(
             }
             val messageId =
                 "0x" + data.substring(834, 834 + 64) // TODO: Hard code for now
-            Timber.tag(TAG).d("getCcipMessageId() messageId: $messageId")
             val messageSequenceNumber = data.substring(data.length - 64).trimStart('0') // TODO: Hard code for now
-            Timber.tag(TAG).d("getCcipMessageId() messageSequenceNumber: $messageSequenceNumber")
             ccipSentRequestDao.insertCcipSentRequestMessageIdAndSequenceNumber(
                 messageSequenceNumber,
                 messageId,
                 txHash,
-                TransferStatus.WAITING_FOR_FINALITY
+                TransferStatus.SENT
             )
             return true
         }
@@ -452,7 +448,6 @@ class CcipRepositoryImpl @Inject constructor(
             Timber.tag(TAG).d("waitForPendingRouterAllowanceApproved() fail, txHash: $txHash, rpcUrl: $rpcUrl")
             return false
         } else {
-            Timber.tag(TAG).d("waitForPendingRouterAllowanceApproved() succeed, txHash: $txHash, rpcUrl: $rpcUrl")
             return true
         }
     }
@@ -491,12 +486,12 @@ class CcipRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun waitForCcipTransfer(
+    override fun waitForCcipTransfer(
         sourceChain: Chain,
         destinationChain: Chain,
         messageId: String,
         maxRetries: Int
-    ): ExecutionState {
+    ): Flow<ExecutionState> = flow {
         repeat(maxRetries) { attempt ->
             // TODO: Use web3j way to monitor CCIP transfer state
             try {
@@ -505,16 +500,20 @@ class CcipRepositoryImpl @Inject constructor(
                     val statusString = response.body()?.status
                     if (statusString == ExecutionState.SUCCESS) {
                         Timber.tag(TAG).d("getCcipTransferDetails() status = SUCCESS")
-                        return ExecutionState.SUCCESS
-                    } else if (statusString == ExecutionState.FAILURE) {
+                        emit(ExecutionState.SUCCESS)
+                        return@flow
+                    } else if (statusString == ExecutionState.FAILED) {
                         Timber.tag(TAG).d("getCcipTransferDetails() status = FAILURE")
-                        return ExecutionState.FAILURE
-                    } else {
+                        emit(ExecutionState.FAILED)
+                        return@flow
+                    } else if (statusString != null) {
+                        emit(statusString)
                         Timber.tag(TAG).d("waitForCcipTransfer() waiting...")
                     }
-                } else {
+                } else if (response.code() == 400 || response.code() == 500) {
                     Timber.tag(TAG).d("getCcipTransferDetails() failed, response: $response")
-                    return ExecutionState.FAILURE
+                    emit(ExecutionState.FAILED)
+                    return@flow
                 }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e)
@@ -522,8 +521,8 @@ class CcipRepositoryImpl @Inject constructor(
             }
             delay(10_000)
         }
-        return ExecutionState.FAILURE
-    }
+        emit(ExecutionState.FAILED)
+    }.flowOn(Dispatchers.IO)
 
     override suspend fun insertCcipTransferTxHash(requestId: String, txHash: String) {
         ccipSentRequestDao.insertCcipTransferTxHash(txHash, requestId)

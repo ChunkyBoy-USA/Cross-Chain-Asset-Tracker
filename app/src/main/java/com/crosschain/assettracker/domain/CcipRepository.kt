@@ -65,12 +65,12 @@ interface CcipRepository {
 
     suspend fun retrieveCcipMessageIdAndSequenceNumber(txHash: String, sourceChain: Chain): Boolean
 
-    suspend fun waitForCcipTransfer(
+    fun waitForCcipTransfer(
         sourceChain: Chain,
         destinationChain: Chain,
         messageId: String,
         maxRetries: Int = 60
-    ): ExecutionState
+    ): Flow<ExecutionState>
 
     suspend fun getCcipFee(
         accountAddress: String,

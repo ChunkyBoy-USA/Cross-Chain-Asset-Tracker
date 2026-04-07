@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
@@ -109,10 +110,11 @@ fun MainScreen(viewModel: MainViewModel) {
             } else {
                 val ethRebaseTokenBalanceInfo = state.ethRebaseTokenBalanceInfo
                 val arbRebaseTokenBalanceInfo = state.arbRebaseTokenBalanceInfo
+                val lifecycleOwner = LocalLifecycleOwner.current
 
                 LaunchedEffect(Unit) {
-                    viewModel.setIntent(MainIntent.LoadBalance(Chain.ETHEREUM))
-                    viewModel.setIntent(MainIntent.LoadBalance(Chain.ARBITRUM))
+                    viewModel.setIntent(MainIntent.LoadBalance(Chain.ETHEREUM, lifecycleOwner))
+                    viewModel.setIntent(MainIntent.LoadBalance(Chain.ARBITRUM, lifecycleOwner))
                 }
 
                 Column(
@@ -217,10 +219,6 @@ fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit, onRestar
                     Text(modifier = Modifier.weight(1f), text = "Status: ${state.ccipTransfer.status}")
                     if (state.ccipTransfer.status != TransferStatus.SUCCESS && state.ccipTransfer.status != TransferStatus.FAILED) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.Bottom).size(20.dp), strokeWidth = 3.dp)
-                    } else if (state.ccipTransfer.status == TransferStatus.SUCCESS || state.ccipTransfer.status == TransferStatus.FAILED) {
-                        Button(onClick = onRestart) {
-                            Text("Restart")
-                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -235,6 +233,11 @@ fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit, onRestar
                     modifier = Modifier.align(Alignment.End),
                     fontSize = 12.sp
                 )
+                if (state.ccipTransfer.status == TransferStatus.SUCCESS || state.ccipTransfer.status == TransferStatus.FAILED) {
+                    Button(onClick = onRestart) {
+                        Text("Send again")
+                    }
+                }
             }
         }
     }

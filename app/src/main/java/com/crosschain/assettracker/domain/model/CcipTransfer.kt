@@ -4,10 +4,12 @@ import com.crosschain.assettracker.data.local.database.entity.CcipSentRequestEnt
 import com.crosschain.assettracker.data.model.ExecutionState
 
 enum class TransferStatus {
-    INITIATED,
-    WAITING_FOR_FINALITY,
     SUCCESS,
-    FAILED
+    FAILED,
+    SENT,
+    SOURCE_FINALIZED,
+    COMMITTED,
+    BLESSED,
 }
 
 data class CcipTransfer(
@@ -56,17 +58,20 @@ fun CcipTransfer.toCcipSentRequestEntity() = CcipSentRequestEntity(
 )
 
 fun CcipTransfer.statusToProgress(): Float = when (status) {
-    TransferStatus.INITIATED -> 0f
-    TransferStatus.WAITING_FOR_FINALITY -> 0.5f
+    TransferStatus.SENT -> 0.1f
+    TransferStatus.SOURCE_FINALIZED -> 0.2f
+    TransferStatus.COMMITTED -> 0.5f
+    TransferStatus.BLESSED -> 0.8f
     TransferStatus.SUCCESS -> 1f
     TransferStatus.FAILED -> 1f
 }
 
 fun ExecutionState.toTransferStatus() =
     when (this) {
-        ExecutionState.UNTOUCHED -> TransferStatus.INITIATED
-        ExecutionState.IN_PROGRESS -> TransferStatus.WAITING_FOR_FINALITY
+        ExecutionState.SENT -> TransferStatus.SENT
+        ExecutionState.SOURCE_FINALIZED -> TransferStatus.SOURCE_FINALIZED
+        ExecutionState.COMMITTED -> TransferStatus.COMMITTED
+        ExecutionState.BLESSED -> TransferStatus.BLESSED
         ExecutionState.SUCCESS -> TransferStatus.SUCCESS
-        ExecutionState.FAILURE -> TransferStatus.FAILED
+        ExecutionState.FAILED -> TransferStatus.FAILED
     }
-

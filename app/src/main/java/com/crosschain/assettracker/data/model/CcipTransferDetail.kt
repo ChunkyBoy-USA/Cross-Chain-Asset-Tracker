@@ -6,8 +6,10 @@ data class CcipTransferDetail(
 )
 
 enum class ExecutionState {
-    UNTOUCHED,
-    IN_PROGRESS,
     SUCCESS,
-    FAILURE
+    FAILED,
+    SENT,
+    SOURCE_FINALIZED,
+    COMMITTED,
+    BLESSED,
 }

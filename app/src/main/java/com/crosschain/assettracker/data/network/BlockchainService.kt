@@ -10,6 +10,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
@@ -149,17 +150,32 @@ class BlockchainService @Inject constructor() {
     fun observeEthBlock(
         rpcUrl: String,
         period: Long = 10000
-    ): Flow<EthBlock> {
+    ): Flow<EthBlock> = callbackFlow {
         val wsService = WebSocketService(rpcUrl.replace("https", "wss"), true)
-        wsService.connect()
-        val web3j = Web3j.build(wsService)
-        return web3j.blockFlowable(false)
-            .asFlow()
-            .sample(period)
-            .onStart {
-                emit(EthBlock())
-            }.flowOn(Dispatchers.IO)
+        try {
+            wsService.connect()
+            val web3j = Web3j.build(wsService)
+
+            val subscription = web3j.blockFlowable(false).subscribe(
+                { block -> trySend(block) },
+                { error -> close(error) }
+            )
+
+            // IMPORTANT: This block runs when the ViewModel or UI stops collecting
+            awaitClose {
+                Timber.d("Stopping WebSocket: App backgrounded or Screen closed")
+                subscription.dispose()
+                wsService.close()
+            }
+        } catch (e: Exception) {
+            close(e)
+        }
     }
+        .conflate()
+        .sample(period)
+        .onStart {
+            emit(EthBlock())
+        }.flowOn(Dispatchers.IO)
 
     fun sendEthTransaction(
         coroutineScope: CoroutineScope,
