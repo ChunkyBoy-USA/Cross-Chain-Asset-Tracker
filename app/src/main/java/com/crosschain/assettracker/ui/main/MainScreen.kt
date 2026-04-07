@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -20,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -76,7 +78,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Cross-Chain Asset Tracker") })
+            TopAppBar(title = { Text("Cross-Chain Track & Transfer") })
         }
     ) { paddingValues ->
         Box(
@@ -178,27 +180,35 @@ fun BalanceCard(balanceInfo: BalanceInfo) {
 
 @Composable
 fun CcipTrackingCard(state: MainUiState, onSendClick: (String) -> Unit, onRestart: () -> Unit) {
-    var amount by rememberSaveable { mutableStateOf("0") }
+    var amount by rememberSaveable { mutableStateOf("") }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("CCIP Transfer Tracking", fontSize = 14.sp, color = Color.Gray)
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Cross-Chain Transfer", fontSize = 14.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(16.dp))
 
             if (state.ccipTransfer == null) {
-                TextField(
-                    value = amount,
-                    onValueChange = { value ->
-                        amount = value
-                    },
-                    label = { Text("Amount") }
-                )
-                Button(onClick = { onSendClick(amount) }) {
-                    Text("Send cross chain tokens")
+                Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+                    OutlinedTextField(
+                        modifier = Modifier.weight(1f).padding(end = 16.dp),
+                        value = amount,
+                        onValueChange = { value ->
+                            amount = value
+                        },
+                        placeholder = {
+                            Text("Amount")
+                        }
+                    )
+                    Button(
+                        modifier = Modifier.wrapContentSize(),
+                        onClick = { onSendClick(amount) }
+                    ) {
+                        Text("Send")
+                    }
                 }
             } else {
                 Text("From: ${state.ccipTransfer.sourceChainName} -> To: ${state.ccipTransfer.destinationChainName}")
