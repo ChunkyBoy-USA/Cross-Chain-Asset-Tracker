@@ -42,12 +42,12 @@ interface CcipRepository {
         chainId: String
     ): Flow<RouterAllowance?>
 
-    fun getPendingRouterAllowanceFlow(): Flow<PendingRouterAllowance?>
+    fun getPendingRouterAllowances(): Flow<List<PendingRouterAllowance>>
 
     suspend fun insertPendingRouterAllowanceTxHash(requestId: String, txHash: String)
     suspend fun insertCcipTransferTxHash(requestId: String, txHash: String)
 
-    fun getPendingTransaction(): Flow<PendingTransaction?>
+    fun getPendingTransactions(): Flow<List<PendingTransaction>>
 
     suspend fun deletePendingTransaction(requestId: String)
 
@@ -69,7 +69,7 @@ interface CcipRepository {
         sourceChain: Chain,
         destinationChain: Chain,
         messageId: String,
-        maxRetries: Int = 60
+        maxRetries: Int = 100
     ): Flow<ExecutionState>
 
     suspend fun getCcipFee(

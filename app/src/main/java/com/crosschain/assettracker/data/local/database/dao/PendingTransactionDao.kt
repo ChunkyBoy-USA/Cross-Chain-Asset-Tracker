@@ -18,7 +18,7 @@ interface PendingTransactionDao {
     fun getPendingTransactionFlow(requestId: String): Flow<PendingTransactionEntity?>
 
     @Query("SELECT * FROM pending_transaction")
-    fun getPendingTransactionFlow(): Flow<PendingTransactionEntity?>
+    fun getPendingTransactionFlow(): Flow<List<PendingTransactionEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPendingTransactionEntity(pendingTransactionEntity: PendingTransactionEntity)

@@ -6,13 +6,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
 import com.crosschain.assettracker.constants.AccountConstants
 import com.crosschain.assettracker.data.local.EncryptedDataRepository
-import com.crosschain.assettracker.data.model.ExecutionState
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.AccountRepository
 import com.crosschain.assettracker.domain.RebaseTokenRepository
 import com.crosschain.assettracker.domain.CcipRepository
 import com.crosschain.assettracker.domain.model.PendingTransactionType
-import com.crosschain.assettracker.domain.model.TransferStatus
 import com.crosschain.assettracker.domain.model.nameToChain
 import com.crosschain.assettracker.domain.model.toTransferStatus
 import com.crosschain.assettracker.ui.mvi.MviViewModel
@@ -21,13 +19,11 @@ import com.crosschain.assettracker.ui.mvi.main.MainSideEffect
 import com.crosschain.assettracker.ui.mvi.main.MainUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.onEmpty
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -42,6 +38,8 @@ class MainViewModel @Inject constructor(
     private val encryptedDataRepository: EncryptedDataRepository,
     private val accountRepository: AccountRepository,
 ) : MviViewModel<MainUiState, MainIntent, MainSideEffect>() {
+
+    private var transferStatePollingJob: Job? = null
 
     override fun createInitialState(): MainUiState = MainUiState()
 
@@ -87,7 +85,11 @@ class MainViewModel @Inject constructor(
                 rebaseTokenRepository.getTokenBalance(chain, accountAddress)
                     .onStart {
                         setState { copy(isLoading = true) }
-                    }.collect { balance ->
+                    }
+                    .catch {
+                        Timber.tag(TAG).e(it, "getTokenBalance failed, chain = ${chain.name}")
+                    }
+                    .collect { balance ->
                         setState {
                             when (balance.chain) {
                                 Chain.ETHEREUM -> {
@@ -271,62 +273,75 @@ class MainViewModel @Inject constructor(
                             )
                             setState { copy(isLoading = false) }
                         } else if (it.ccipMessageId != null) {
-                            ccipRepository.waitForCcipTransfer(
-                                it.sourceChainName.nameToChain(),
-                                it.destinationChainName.nameToChain(),
-                                it.ccipMessageId
-                            ).collect { executionState ->
-                                setState {
-                                    copy(
-                                        ccipTransfer = ccipTransfer?.copy(status = executionState.toTransferStatus())
-                                    )
+                            transferStatePollingJob?.cancel()
+                            transferStatePollingJob = launch {
+                                ccipRepository.waitForCcipTransfer(
+                                    it.sourceChainName.nameToChain(),
+                                    it.destinationChainName.nameToChain(),
+                                    it.ccipMessageId
+                                ).collect { executionState ->
+                                    setState {
+                                        copy(
+                                            ccipTransfer = this.ccipTransfer?.copy(status = executionState.toTransferStatus())
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                }
-            }
-
-            launch {
-                ccipRepository.getPendingTransaction().collect {
-                    Timber.tag(TAG).d("Pending Transaction: $it")
-                    if (it != null && it.txHash != null) {
-                        when (it.type) {
-                            PendingTransactionType.CCIP_REQUEST -> {
-                                ccipRepository.insertCcipTransferTxHash(it.requestId, it.txHash)
-                            }
-
-                            PendingTransactionType.ROUTER_ALLOWANCE_REQUEST -> {
-                                ccipRepository.insertPendingRouterAllowanceTxHash(
-                                    it.requestId,
-                                    it.txHash
-                                )
-                            }
-                        }
-                        ccipRepository.deletePendingTransaction(it.requestId)
-                    }
-                }
-            }
-
-            launch {
-                ccipRepository.getPendingRouterAllowanceFlow().collect {
-                    Timber.tag(TAG).d("Pending Router Allowance: $it")
-                    if (it != null && it.txHash != null && !it.isApproved) {
-                        val approved = ccipRepository.waitForPendingRouterAllowanceApproved(
-                            it.txHash,
-                            it.rpcUrl
-                        )
-                        Timber.tag(TAG)
-                            .d("Check Pending Router Allowance Approved, approved = $approved")
-                        if (approved) {
-                            ccipRepository.routerAllowanceApproved(
-                                it.routerAddress,
-                                it.tokenAddress,
-                                it.walletAddress,
-                                it.chainId,
-                                it.pendingAllowance
+                    } else {
+                        setState {
+                            copy(
+                                ccipTransfer = null
                             )
-                            ccipRepository.deletePendingRouterAllowance(it.requestId)
+                        }
+                    }
+                }
+            }
+
+            launch(Dispatchers.IO) {
+                ccipRepository.getPendingTransactions().collect { pendingTransactions ->
+                    Timber.tag(TAG).d("Pending Transactions: $pendingTransactions")
+                    pendingTransactions.forEach {
+                        if (it.txHash != null) {
+                            when (it.type) {
+                                PendingTransactionType.CCIP_REQUEST -> {
+                                    ccipRepository.insertCcipTransferTxHash(it.requestId, it.txHash)
+                                }
+
+                                PendingTransactionType.ROUTER_ALLOWANCE_REQUEST -> {
+                                    ccipRepository.insertPendingRouterAllowanceTxHash(
+                                        it.requestId,
+                                        it.txHash
+                                    )
+                                }
+                            }
+                            ccipRepository.deletePendingTransaction(it.requestId)
+                        }
+                    }
+                }
+            }
+
+            launch(Dispatchers.IO) {
+                ccipRepository.getPendingRouterAllowances().collect { pendingRouterAllowances ->
+                    Timber.tag(TAG).d("Pending Router Allowance: $pendingRouterAllowances")
+                    pendingRouterAllowances.forEach {
+                        if (it.txHash != null && !it.isApproved) {
+                            val approved = ccipRepository.waitForPendingRouterAllowanceApproved(
+                                it.txHash,
+                                it.rpcUrl
+                            )
+                            Timber.tag(TAG)
+                                .d("Check Pending Router Allowance Approved, approved = $approved")
+                            if (approved) {
+                                ccipRepository.routerAllowanceApproved(
+                                    it.routerAddress,
+                                    it.tokenAddress,
+                                    it.walletAddress,
+                                    it.chainId,
+                                    it.pendingAllowance
+                                )
+                                ccipRepository.deletePendingRouterAllowance(it.requestId)
+                            }
                         }
                     }
                 }

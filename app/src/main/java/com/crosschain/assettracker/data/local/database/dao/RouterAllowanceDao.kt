@@ -32,7 +32,7 @@ interface RouterAllowanceDao {
     suspend fun insertPendingRouterAllowanceTxHash(txHash: String, requestId: String)
 
     @Query("SELECT * FROM pending_router_allowance")
-    fun getPendingRouterAllowance(): Flow<PendingRouterAllowanceEntity?>
+    fun getPendingRouterAllowances(): Flow<List<PendingRouterAllowanceEntity>>
 
     @Query("DELETE FROM pending_router_allowance WHERE requestId = :requestId")
     suspend fun deletePendingRouterAllowance(requestId: String)

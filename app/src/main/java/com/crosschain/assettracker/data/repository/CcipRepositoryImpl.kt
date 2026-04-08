@@ -192,14 +192,14 @@ class CcipRepositoryImpl @Inject constructor(
             it?.toRouterAllowance()
         }
 
-    override fun getPendingRouterAllowanceFlow(): Flow<PendingRouterAllowance?> =
-        routerAllowanceDao.getPendingRouterAllowance().map {
-             it?.toPendingRouterAllowance()
+    override fun getPendingRouterAllowances(): Flow<List<PendingRouterAllowance>> =
+        routerAllowanceDao.getPendingRouterAllowances().map { pendingRouterAllowances ->
+            pendingRouterAllowances.map { it.toPendingRouterAllowance() }
         }
 
-    override fun getPendingTransaction(): Flow<PendingTransaction?> =
-        pendingTransactionDao.getPendingTransactionFlow().map {
-            it?.toPendingTransaction()
+    override fun getPendingTransactions(): Flow<List<PendingTransaction>> =
+        pendingTransactionDao.getPendingTransactionFlow().map { pendingTransactionEntities ->
+            pendingTransactionEntities.map { it.toPendingTransaction() }
         }
 
     override suspend fun insertPendingRouterAllowanceTxHash(requestId: String, txHash: String) {
