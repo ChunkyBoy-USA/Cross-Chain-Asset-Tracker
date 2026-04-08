@@ -1,8 +1,15 @@
 # Cross-Chain-Asset-Tracker
-Cross-Chain Asset Tracker is a native Android Application to monitor rebase tokens and conduct cross-chain transactions. 
+Cross-Chain Asset Tracker is a native Android Application to monitor rebase tokens and conduct cross-chain transfer.
+
+![Cross-Chain Transfer](/transfer.gif "Cross-Chain Transfer")
+
+![Real-time Balance & Interest Rate](/balance.gif "Real-time Balance & Interest Rate")
 
 ## Why I built this
 This project demonstrates my solid Android experience combined with Smart Contract development (Solidity/Foundry).
+
+## How To Build
+Define variables in `local.properties`: `ARBITRUM_SEPOLIA_RPC_URL`, `ETHEREUM_SEPOLIA_RPC_URL`, [`REOWN_PROJECT_ID`](https://docs.reown.com/appkit/android/core/installation)
 
 ## Tech Stack
 ### Android (Native)
@@ -24,17 +31,13 @@ This project demonstrates my solid Android experience combined with Smart Contra
 * Features: Chainlink CCIP integration, Rebase Token, Token Pool, Vault Staking, Invariant testing.
 
 ## Main Features
-1. Real-Time Balance Updates
-The app calculates rebase token balances on-device. It uses Kotlin Flow to show the balance changing in real-time without needing to refresh the screen.
+1. Real-Time Balance and Interest Rate Updates. The app calculates rebase token balances on-device. It uses Kotlin Flow to show the balance changing in real-time without needing to refresh the screen.
 
-2. Cross-Chain Transfer
-Interact with smart contracts & the infrastructure to conduct cross-chain transfers. You can see when your tokens leave one chain and arrive on the next.
+2. Cross-Chain Transfer. Interact with smart contracts & the infrastructure to conduct cross-chain transfers. You can see when your tokens leave one chain and arrive on the next.
 
-3. User Control and Authorization
-Every transaction will be signed by Wallet without touching private keys.
+3. User Control and Authorization. Every transaction will be signed by Wallet without touching private keys.
 
-4. Hardware-Level Security
-Uses the Android Keystore to keep wallet addresses encrypted and safe.
+4. Hardware-Level Security. Uses the Android Keystore to keep wallet addresses encrypted and safe.
 
 ## Smart Contract & Infrastructure (SSoT)
 This repository serves as the single source of truth for the cross-chain logic. The Android app interacts directly with the following verified infrastructure: https://github.com/ChunkyBoy-USA/foundry-ccip-rebase-token
