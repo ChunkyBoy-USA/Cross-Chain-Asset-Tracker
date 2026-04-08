@@ -508,7 +508,7 @@ class CcipRepositoryImpl @Inject constructor(
                         return@flow
                     } else if (statusString != null) {
                         emit(statusString)
-                        Timber.tag(TAG).d("waitForCcipTransfer() waiting...")
+                        Timber.tag(TAG).d("waitForCcipTransfer() waiting, status = $statusString")
                     }
                 } else if (response.code() == 400 || response.code() == 500) {
                     Timber.tag(TAG).d("getCcipTransferDetails() failed, response: $response")
@@ -519,7 +519,7 @@ class CcipRepositoryImpl @Inject constructor(
                 Timber.tag(TAG).e(e)
                 Timber.tag(TAG).d("waitForCcipTransfer() Attempt $attempt: Message not yet committed or reverted.")
             }
-            delay(10_000)
+            delay(15_000)
         }
         emit(ExecutionState.FAILED)
     }.flowOn(Dispatchers.IO)

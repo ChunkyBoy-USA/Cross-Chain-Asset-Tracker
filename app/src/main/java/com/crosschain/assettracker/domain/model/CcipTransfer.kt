@@ -58,8 +58,8 @@ fun CcipTransfer.toCcipSentRequestEntity() = CcipSentRequestEntity(
 )
 
 fun CcipTransfer.statusToProgress(): Float = when (status) {
-    TransferStatus.SENT -> 0.1f
-    TransferStatus.SOURCE_FINALIZED -> 0.2f
+    TransferStatus.SENT -> 0.2f
+    TransferStatus.SOURCE_FINALIZED -> 0.3f
     TransferStatus.COMMITTED -> 0.5f
     TransferStatus.BLESSED -> 0.8f
     TransferStatus.SUCCESS -> 1f

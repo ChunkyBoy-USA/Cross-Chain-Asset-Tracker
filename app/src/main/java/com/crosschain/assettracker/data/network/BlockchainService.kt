@@ -94,7 +94,7 @@ class BlockchainService @Inject constructor() {
             try {
                 val receipt = polling.waitForTransactionReceipt(txHash)
                 return@withContext receipt
-            } catch (e: TransactionException) {
+            } catch (e: Exception) {
                 Timber.tag(TAG).e(e)
                 return@withContext null
             }
