@@ -10,17 +10,13 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.sample
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.reactive.asFlow
+import kotlinx.coroutines.reactive.collect
 import kotlinx.coroutines.withContext
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.FunctionReturnDecoder
@@ -32,19 +28,17 @@ import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.DefaultBlockParameterNumber
 import org.web3j.protocol.core.methods.request.EthFilter
 import org.web3j.protocol.core.methods.request.Transaction
-import org.web3j.protocol.core.methods.response.EthBlock
 import org.web3j.protocol.core.methods.response.Log
 import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.exceptions.TransactionException
 import org.web3j.protocol.http.HttpService
-import org.web3j.protocol.websocket.WebSocketService
 import org.web3j.tx.response.PollingTransactionReceiptProcessor
 import org.web3j.utils.Numeric
 import timber.log.Timber
 import java.math.BigInteger
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.web3j.protocol.core.methods.response.Transaction as TransactionResponse
 
 @Singleton
 class BlockchainService @Inject constructor() {
@@ -57,7 +51,8 @@ class BlockchainService @Inject constructor() {
         outputParameters: List<TypeReference<*>>
     ): T = withContext(Dispatchers.IO) {
         try {
-            Timber.tag(TAG).d("sendEthCall: rpcUrl: $rpcUrl, fromAddress: $fromAddress, toAddress: $toAddress, methodName: $methodName, inputParameters: $inputParameters")
+            Timber.tag(TAG)
+                .d("sendEthCall: rpcUrl: $rpcUrl, fromAddress: $fromAddress, toAddress: $toAddress, methodName: $methodName, inputParameters: $inputParameters")
             val web3j = Web3j.build(HttpService(rpcUrl))
             val function = Function(
                 methodName,
@@ -81,7 +76,7 @@ class BlockchainService @Inject constructor() {
                 val value = results[0].value
                 if (value is T) {
                     return@withContext value
-                }else {
+                } else {
                     throw Exception("ethCall result is not Type ${T::class.java.simpleName}")
                 }
             } else {
@@ -92,17 +87,18 @@ class BlockchainService @Inject constructor() {
         }
     }
 
-    suspend fun waitForEthTransactionReceipt(rpcUrl: String, txHash: String): TransactionReceipt? = withContext(Dispatchers.IO) {
-        val web3j = Web3j.build(HttpService(rpcUrl))
-        val polling = PollingTransactionReceiptProcessor(web3j, 1000, 100)
-        try {
-            val receipt = polling.waitForTransactionReceipt(txHash)
-            return@withContext receipt
-        } catch (e: TransactionException) {
-            Timber.tag(TAG).e(e)
-            return@withContext null
+    suspend fun waitForEthTransactionReceipt(rpcUrl: String, txHash: String): TransactionReceipt? =
+        withContext(Dispatchers.IO) {
+            val web3j = Web3j.build(HttpService(rpcUrl))
+            val polling = PollingTransactionReceiptProcessor(web3j, 1000, 100)
+            try {
+                val receipt = polling.waitForTransactionReceipt(txHash)
+                return@withContext receipt
+            } catch (e: TransactionException) {
+                Timber.tag(TAG).e(e)
+                return@withContext null
+            }
         }
-    }
 
     fun filterTopicsForEvent(
         rpcUrl: String,
@@ -147,34 +143,27 @@ class BlockchainService @Inject constructor() {
     }
 
     @OptIn(FlowPreview::class)
-    fun observeEthBlock(
+    fun observeEthTransaction(
         rpcUrl: String,
         period: Long = 10000
-    ): Flow<EthBlock> = callbackFlow {
-        val wsService = WebSocketService(rpcUrl.replace("https", "wss"), true)
+    ): Flow<TransactionResponse> = flow {
+        val httpService = HttpService(rpcUrl, true)
         try {
-            wsService.connect()
-            val web3j = Web3j.build(wsService)
-
-            val subscription = web3j.blockFlowable(false).subscribe(
-                { block -> trySend(block) },
-                { error -> close(error) }
-            )
-
-            // IMPORTANT: This block runs when the ViewModel or UI stops collecting
-            awaitClose {
-                Timber.d("Stopping WebSocket: App backgrounded or Screen closed")
-                subscription.dispose()
-                wsService.close()
+            val web3j = Web3j.build(httpService)
+            web3j.transactionFlowable().collect {
+                emit(it)
             }
         } catch (e: Exception) {
-            close(e)
+            Timber.tag(TAG).e(e)
+            httpService.close()
+        } finally {
+            httpService.close()
         }
     }
         .conflate()
         .sample(period)
         .onStart {
-            emit(EthBlock())
+            emit(TransactionResponse())
         }.flowOn(Dispatchers.IO)
 
     fun sendEthTransaction(

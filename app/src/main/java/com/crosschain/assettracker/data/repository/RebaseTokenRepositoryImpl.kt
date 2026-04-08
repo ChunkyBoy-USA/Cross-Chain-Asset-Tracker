@@ -8,9 +8,7 @@ import com.crosschain.assettracker.domain.model.BalanceInfo
 import com.crosschain.assettracker.domain.model.Chain
 import com.crosschain.assettracker.domain.RebaseTokenRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import org.web3j.abi.TypeReference
@@ -75,7 +73,7 @@ class RebaseTokenRepositoryImpl @Inject constructor(
             )
         }
 
-        service.observeEthBlock(chain.rpcUrl).collect {
+        service.observeEthTransaction(chain.rpcUrl).collect {
             val balance = service.sendEthCall<BigInteger>(
                 chain.rpcUrl,
                 address,
