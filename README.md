@@ -1,9 +1,11 @@
 # Cross-Chain-Asset-Tracker
 Cross-Chain Asset Tracker is a native Android Application to monitor rebase tokens and conduct cross-chain transfer.
 
-![Cross-Chain Transfer](/transfer.gif "Cross-Chain Transfer")
 
-![Real-time Balance & Interest Rate](/balance.gif "Real-time Balance & Interest Rate")
+| Real-time balance & interest rate |          Cross-chain transfer          |
+| :---: |:--------------------------------------:|
+| ![Real-time Balance & Interest Rate](/balance.gif) | ![Cross-Chain Transfer](/transfer.gif) |
+
 
 ## Why I built this
 This project demonstrates my solid Android experience combined with Smart Contract development (Solidity/Foundry).
