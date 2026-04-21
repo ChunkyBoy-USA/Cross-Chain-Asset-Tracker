@@ -34,7 +34,7 @@ class RebaseTokenRepositoryImpl @Inject constructor(
         val symbol = localRecord?.symbol
             ?: service.sendEthCall<String>(
                 chain.rpcUrl,
-                address,
+                null,
                 chain.rebaseTokenAddress,
                 RebaseTokenConstants.GET_SYMBOL_FUNCTION,
                 listOf(),
@@ -44,7 +44,7 @@ class RebaseTokenRepositoryImpl @Inject constructor(
         val decimals = localRecord?.decimals
             ?: service.sendEthCall<BigInteger>(
                 chain.rpcUrl,
-                address,
+                null,
                 chain.rebaseTokenAddress,
                 RebaseTokenConstants.GET_DECIMAL_PLACES_FUNCTION,
                 listOf(),
@@ -54,7 +54,7 @@ class RebaseTokenRepositoryImpl @Inject constructor(
         val baseInterestRate = localRecord?.baseInterestRate
             ?: service.sendEthCall<BigInteger>(
                 chain.rpcUrl,
-                address,
+                null,
                 chain.rebaseTokenAddress,
                 RebaseTokenConstants.GET_BASE_INTEREST_RATE_FUNCTION,
                 listOf(),
