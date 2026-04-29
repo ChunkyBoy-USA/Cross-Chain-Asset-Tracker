@@ -74,36 +74,38 @@ class RebaseTokenRepositoryImpl @Inject constructor(
         }
 
         service.observeEthTransaction(chain.rpcUrl).collect {
-            val balance = service.sendEthCall<BigInteger>(
-                chain.rpcUrl,
-                address,
-                chain.rebaseTokenAddress,
-                RebaseTokenConstants.GET_BALANCE_FUNCTION,
-                listOf(Address(address)),
-                listOf(object : TypeReference<Uint256>() {})
-            )
-
-            val currentInterestRate = service.sendEthCall<BigInteger>(
-                chain.rpcUrl,
-                address,
-                chain.rebaseTokenAddress,
-                RebaseTokenConstants.GET_USER_INTEREST_RATE_FUNCTION,
-                listOf(Address(address)),
-                listOf(object : TypeReference<Uint256>() {})
-            )
-
-            val bigDecimalBalance = balance.toBigDecimal().movePointLeft(decimals)
-            val bigDecimalInterestRate = currentInterestRate.toBigDecimal().movePointLeft(decimals)
-
-            emit(
-                BalanceInfo(
-                    amount = bigDecimalBalance.toPlainString(),
-                    tokenSymbol = symbol,
-                    currentInterestRate = bigDecimalInterestRate.toPlainString(),
-                    baseInterestRate = baseInterestRate,
-                    chain = chain
+            if (address.isNotBlank()) {
+                val balance = service.sendEthCall<BigInteger>(
+                    chain.rpcUrl,
+                    address,
+                    chain.rebaseTokenAddress,
+                    RebaseTokenConstants.GET_BALANCE_FUNCTION,
+                    listOf(Address(address)),
+                    listOf(object : TypeReference<Uint256>() {})
                 )
-            )
+
+                val currentInterestRate = service.sendEthCall<BigInteger>(
+                    chain.rpcUrl,
+                    address,
+                    chain.rebaseTokenAddress,
+                    RebaseTokenConstants.GET_USER_INTEREST_RATE_FUNCTION,
+                    listOf(Address(address)),
+                    listOf(object : TypeReference<Uint256>() {})
+                )
+
+                val bigDecimalBalance = balance.toBigDecimal().movePointLeft(decimals)
+                val bigDecimalInterestRate = currentInterestRate.toBigDecimal().movePointLeft(decimals)
+
+                emit(
+                    BalanceInfo(
+                        amount = bigDecimalBalance.toPlainString(),
+                        tokenSymbol = symbol,
+                        currentInterestRate = bigDecimalInterestRate.toPlainString(),
+                        baseInterestRate = baseInterestRate,
+                        chain = chain
+                    )
+                )
+            }
         }
     }.flowOn(Dispatchers.IO)
 
